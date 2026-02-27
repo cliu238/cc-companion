@@ -29,6 +29,8 @@ fn main() -> io::Result<()> {
             }
         }
 
+        app.tick();
+
         if app.should_quit {
             break;
         }
