@@ -73,7 +73,7 @@ pub fn draw(f: &mut Frame, app: &App) {
     let help = match app.mode {
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Esc=cancel | Shift+Tab=logs".to_string(),
-            _ => "i=type j/k=scroll n=new session g=gateway q=quit | Shift+Tab=logs".to_string(),
+            _ => "i=type j/k=scroll n=new t=tone g=gateway q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
             (_, InputMode::Search) => {
@@ -331,13 +331,20 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     };
     let gw_len: usize = gw_spans.iter().map(|s| s.content.len()).sum();
 
+    let tone_spans: Vec<Span> = {
+        let label = format!(" Tone:{}", app.chat_tone.label());
+        vec![Span::styled(label, Style::default().fg(Color::Magenta))]
+    };
+    let tone_len: usize = tone_spans.iter().map(|s| s.content.len()).sum();
+
     let Some(usage) = &app.usage_status else {
         let left = " Loading usage...";
-        let pad = (width as usize).saturating_sub(left.len() + gw_len + session_part.len());
+        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + session_part.len());
         let mut spans = vec![
             Span::styled(left, Style::default().fg(Color::DarkGray)),
         ];
         spans.extend(gw_spans);
+        spans.extend(tone_spans);
         spans.push(Span::raw(" ".repeat(pad)));
         spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
         return Paragraph::new(Line::from(spans));
@@ -379,11 +386,12 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         sonnet_part,
     );
 
-    let pad = (width as usize).saturating_sub(left.len() + gw_len + session_part.len());
+    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + session_part.len());
     let mut spans = vec![
         Span::styled(left, Style::default().fg(color)),
     ];
     spans.extend(gw_spans);
+    spans.extend(tone_spans);
     spans.push(Span::raw(" ".repeat(pad)));
     spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
     Paragraph::new(Line::from(spans))

@@ -10,6 +10,39 @@ use crate::data::{self, ConversationMessage, Project, SessionEntry};
 
 const OVERVIEW_PROMPT: &str = r#"You are a concise project advisor. Read the key project files (config, CLAUDE.md, main source, git log --oneline -10, git status), then respond in 2-3 sentences: what the project is, what's happening now, and one suggested next step. No bullet points, no headers, no details. Just a brief spoken-style summary."#;
 
+#[derive(Clone, Copy)]
+pub enum ChatTone {
+    Advisor,
+    Eric,
+    EricChinese,
+}
+
+impl ChatTone {
+    pub fn system_prompt(self) -> &'static str {
+        match self {
+            Self::Advisor => "You are a cc-companion advisor. Provide short suggestions. You cannot edit or write code.",
+            Self::Eric => "You are a mean advisor. Provide short suggestions. You cannot edit or write code. Sometimes use personal attacks (only when it makes sense, not too often). If there is nothing to complain about, talk like a normal advisor.",
+            Self::EricChinese => "You are a mean advisor. Provide short suggestions. You cannot edit or write code. Sometimes use personal attacks (only when it makes sense, not too often). If there is nothing to complain about, talk like a normal advisor. Output in Chinese.",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Advisor => "advisor",
+            Self::Eric => "eric",
+            Self::EricChinese => "eric-chinese",
+        }
+    }
+
+    fn next(self) -> Self {
+        match self {
+            Self::Advisor => Self::Eric,
+            Self::Eric => Self::EricChinese,
+            Self::EricChinese => Self::Advisor,
+        }
+    }
+}
+
 pub struct UsageStatus {
     pub five_hour_pct: f64,
     pub five_hour_resets_at: Option<DateTime<Utc>>,
@@ -84,6 +117,9 @@ pub struct App {
     pub gateway_enabled: bool,
     pub gateway_url: Option<String>,
     pub gateway_headers: Option<String>,
+
+    // Chat tone
+    pub chat_tone: ChatTone,
 }
 
 impl App {
@@ -120,6 +156,7 @@ impl App {
             gateway_url: std::env::var("ANTHROPIC_BASE_URL").ok(),
             gateway_headers: std::env::var("ANTHROPIC_CUSTOM_HEADERS").ok(),
             gateway_enabled: std::env::var("ANTHROPIC_BASE_URL").is_ok(),
+            chat_tone: ChatTone::Advisor,
         };
         app.fetch_usage();
         app.send_overview();
@@ -231,6 +268,9 @@ impl App {
                     );
                 }
             }
+            KeyCode::Char('t') => {
+                self.chat_tone = self.chat_tone.next();
+            }
             KeyCode::Char('n') => {
                 if !self.chat_waiting {
                     self.chat_messages.clear();
@@ -275,6 +315,7 @@ impl App {
         let gw_enabled = self.gateway_enabled;
         let gw_url = self.gateway_url.clone();
         let gw_headers = self.gateway_headers.clone();
+        let tone_prompt = self.chat_tone.system_prompt();
         let msg = OVERVIEW_PROMPT.to_string();
 
         let (tx, rx) = mpsc::channel();
@@ -296,6 +337,7 @@ impl App {
             cmd.arg("-p").arg(&msg);
             cmd.arg("--output-format").arg("json");
             cmd.arg("--permission-mode").arg("dontAsk");
+            cmd.arg("--append-system-prompt").arg(tone_prompt);
 
             let result = match cmd.output() {
                 Ok(output) => {
@@ -326,6 +368,7 @@ impl App {
         let gw_enabled = self.gateway_enabled;
         let gw_url = self.gateway_url.clone();
         let gw_headers = self.gateway_headers.clone();
+        let tone_prompt = self.chat_tone.system_prompt();
 
         let (tx, rx) = mpsc::channel();
         self.response_rx = Some(rx);
@@ -348,6 +391,7 @@ impl App {
             cmd.arg("--disallowedTools")
                 .arg("Write,Edit,MultiEdit,TodoWrite");
             cmd.arg("--permission-mode").arg("dontAsk");
+            cmd.arg("--append-system-prompt").arg(tone_prompt);
             if let Some(id) = &session_id {
                 cmd.arg("--resume").arg(id);
             }
