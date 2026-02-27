@@ -156,8 +156,8 @@ fn draw_chat(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .scroll((app.chat_scroll, 0));
     f.render_widget(messages, chat_chunks[0]);
 
-    // Status bar: token usage + countdown
-    let status_line = build_usage_line(app);
+    // Status bar: token usage + session ID
+    let status_line = build_status_line(app, chat_chunks[1].width);
     f.render_widget(status_line, chat_chunks[1]);
 
     // Input box
@@ -307,10 +307,22 @@ fn draw_claude_md(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     f.render_widget(paragraph, area);
 }
 
-fn build_usage_line(app: &App) -> Paragraph<'static> {
+fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
+    let session_part = match &app.chat_session_id {
+        Some(id) => format!("Session: {} ", &id[..id.len().min(8)]),
+        None => String::new(),
+    };
+
     let Some(usage) = &app.usage_status else {
-        return Paragraph::new(" Loading usage...")
-            .style(Style::default().fg(Color::DarkGray));
+        // Still loading — show session ID on the right
+        let left = " Loading usage...";
+        let pad = (width as usize).saturating_sub(left.len() + session_part.len());
+        let line = Line::from(vec![
+            Span::styled(left, Style::default().fg(Color::DarkGray)),
+            Span::raw(" ".repeat(pad)),
+            Span::styled(session_part, Style::default().fg(Color::DarkGray)),
+        ]);
+        return Paragraph::new(line);
     };
 
     // Color based on percent_used
@@ -339,14 +351,20 @@ fn build_usage_line(app: &App) -> Paragraph<'static> {
     };
 
     let remaining_tokens = usage.token_limit.saturating_sub(usage.total_tokens);
-    let text = format!(
+    let left = format!(
         " \u{23f1} {} | ~{} remaining ({}% used)",
         countdown,
         format_tokens(remaining_tokens),
         usage.percent_used as u32,
     );
 
-    Paragraph::new(text).style(Style::default().fg(color))
+    let pad = (width as usize).saturating_sub(left.len() + session_part.len());
+    let line = Line::from(vec![
+        Span::styled(left, Style::default().fg(color)),
+        Span::raw(" ".repeat(pad)),
+        Span::styled(session_part, Style::default().fg(Color::DarkGray)),
+    ]);
+    Paragraph::new(line)
 }
 
 fn format_tokens(n: u64) -> String {
