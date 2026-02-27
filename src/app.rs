@@ -1,68 +1,17 @@
-use std::fs;
 use std::process::Command;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::time::Instant;
 
-use chrono::{Datelike, DateTime, Utc};
+use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::data::{self, ConversationMessage, Project, SessionEntry};
 
-struct WeeklyConfig {
-    token_limit: u64,
-    window_start: Option<DateTime<Utc>>,
-}
-
-/// Load weekly config from limits.json.
-fn load_weekly_config() -> WeeklyConfig {
-    #[derive(serde::Deserialize)]
-    struct LimitsConfig {
-        #[serde(default)]
-        weekly_token_limit: u64,
-        weekly_reset_weekday: Option<u32>, // Mon=0..Sun=6
-        weekly_reset_hour_utc: Option<u32>,
-    }
-    let path = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.join("limits.json")))
-        .unwrap_or_else(|| "limits.json".into());
-    let content = fs::read_to_string(&path)
-        .or_else(|_| fs::read_to_string("limits.json"))
-        .unwrap_or_default();
-    let cfg = serde_json::from_str::<LimitsConfig>(&content).unwrap_or(LimitsConfig {
-        weekly_token_limit: 0,
-        weekly_reset_weekday: None,
-        weekly_reset_hour_utc: None,
-    });
-
-    // Find most recent reset time from weekday + hour
-    let window_start = match (cfg.weekly_reset_weekday, cfg.weekly_reset_hour_utc) {
-        (Some(wd), Some(hour)) => {
-            let now = Utc::now();
-            let today = now.date_naive();
-            let current_wd = today.weekday().num_days_from_monday();
-            let days_since = ((current_wd + 7 - wd) % 7) as i64;
-            let reset_date = today - chrono::Duration::days(days_since);
-            let reset_time = reset_date
-                .and_hms_opt(hour, 0, 0)
-                .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc));
-            reset_time.map(|rt| if rt > now { rt - chrono::Duration::days(7) } else { rt })
-        }
-        _ => None,
-    };
-
-    WeeklyConfig { token_limit: cfg.weekly_token_limit, window_start }
-}
-
 pub struct UsageStatus {
-    pub window_end: Option<DateTime<Utc>>,
-    pub total_tokens: u64,
-    pub token_limit: u64,
-    pub percent_used: f64,
-    pub tokens_per_minute: f64,
-    pub weekly_tokens: u64,
-    pub weekly_percent: f64,
+    pub five_hour_pct: f64,
+    pub five_hour_resets_at: Option<DateTime<Utc>>,
+    pub seven_day_pct: f64,
     pub last_fetched: Instant,
 }
 
@@ -121,6 +70,9 @@ pub struct App {
     pub usage_status: Option<UsageStatus>,
     usage_rx: Option<Receiver<Option<UsageStatus>>>,
     usage_fetching: bool,
+
+    // Clipboard feedback
+    pub clipboard_msg: Option<String>,
 }
 
 impl App {
@@ -152,6 +104,7 @@ impl App {
             usage_status: None,
             usage_rx: None,
             usage_fetching: false,
+            clipboard_msg: None,
         };
         app.fetch_usage();
         app
@@ -198,45 +151,9 @@ impl App {
         self.usage_fetching = true;
         let (tx, rx) = mpsc::channel();
         self.usage_rx = Some(rx);
-        let weekly_cfg = load_weekly_config();
 
         thread::spawn(move || {
-            let result = Command::new("npx")
-                .args(["ccusage@latest", "blocks", "--active", "--json", "--token-limit", "max"])
-                .output();
-
-            let mut status = match result {
-                Ok(output) if output.status.success() => {
-                    let raw = String::from_utf8_lossy(&output.stdout);
-                    parse_usage_json(&raw)
-                }
-                _ => None,
-            };
-
-            if let Some(ref mut s) = status {
-                // Weekly tokens: sum blocks within the billing week window
-                let since = match weekly_cfg.window_start {
-                    Some(ws) => ws.format("%Y%m%d").to_string(),
-                    None => (chrono::Utc::now() - chrono::Duration::days(7)).format("%Y%m%d").to_string(),
-                };
-                if let Ok(output) = Command::new("npx")
-                    .args(["ccusage@latest", "blocks", "--json", "--since", &since])
-                    .output()
-                {
-                    if output.status.success() {
-                        let raw = String::from_utf8_lossy(&output.stdout);
-                        s.weekly_tokens = parse_weekly_blocks(&raw, weekly_cfg.window_start);
-                    }
-                }
-
-                // Weekly %: only when limit is configured
-                s.weekly_percent = if weekly_cfg.token_limit > 0 {
-                    (s.weekly_tokens as f64 / weekly_cfg.token_limit as f64) * 100.0
-                } else {
-                    0.0
-                };
-            }
-
+            let status = fetch_oauth_usage();
             let _ = tx.send(status);
         });
     }
@@ -435,6 +352,9 @@ impl App {
     }
 
     fn handle_session_list_key(&mut self, key: KeyEvent) {
+        // Clear clipboard feedback on any key
+        self.clipboard_msg = None;
+
         let len = self.filtered_session_indices.len();
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc | KeyCode::Backspace => {
@@ -463,6 +383,23 @@ impl App {
             }
             KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.session_idx = self.session_idx.saturating_sub(10);
+            }
+            KeyCode::Char('y') => {
+                if let Some(session) = self.selected_session() {
+                    let id = session.session_id.clone();
+                    let ok = Command::new("pbcopy")
+                        .stdin(std::process::Stdio::piped())
+                        .spawn()
+                        .and_then(|mut child| {
+                            use std::io::Write;
+                            if let Some(stdin) = child.stdin.as_mut() {
+                                stdin.write_all(id.as_bytes())?;
+                            }
+                            child.wait()
+                        })
+                        .is_ok();
+                    self.clipboard_msg = Some(if ok { "Copied!".into() } else { "Copy failed".into() });
+                }
             }
             KeyCode::Enter => self.enter_conversation(),
             KeyCode::Char('/') => {
@@ -601,65 +538,58 @@ impl App {
     }
 }
 
-fn parse_usage_json(raw: &str) -> Option<UsageStatus> {
-    let val: serde_json::Value = serde_json::from_str(raw).ok()?;
-    let block = val.get("blocks")?.as_array()?.first()?;
+/// Fetch usage from the Anthropic OAuth API.
+fn fetch_oauth_usage() -> Option<UsageStatus> {
+    // Get OAuth token from macOS keychain
+    let cred_output = Command::new("security")
+        .args(["find-generic-password", "-s", "Claude Code-credentials", "-w"])
+        .output()
+        .ok()?;
+    if !cred_output.status.success() {
+        return None;
+    }
+    let cred_json = String::from_utf8_lossy(&cred_output.stdout);
+    let cred: serde_json::Value = serde_json::from_str(cred_json.trim()).ok()?;
+    let token = cred
+        .get("claudeAiOauth")
+        .and_then(|o| o.get("accessToken"))
+        .and_then(|t| t.as_str())?;
 
-    let end_time_str = block.get("endTime")?.as_str()?;
-    let window_end = end_time_str.parse::<DateTime<Utc>>().ok();
+    // Call the usage API (anthropic-beta header is required)
+    let api_output = Command::new("curl")
+        .args([
+            "-s",
+            "-H", "Accept: application/json",
+            "-H", "Content-Type: application/json",
+            "-H", "User-Agent: claude-code/2.0.32",
+            "-H", &format!("Authorization: Bearer {}", token),
+            "-H", "anthropic-beta: oauth-2025-04-20",
+            "https://api.anthropic.com/api/oauth/usage",
+        ])
+        .output()
+        .ok()?;
+    if !api_output.status.success() {
+        return None;
+    }
+    let raw = String::from_utf8_lossy(&api_output.stdout);
+    let val: serde_json::Value = serde_json::from_str(&raw).ok()?;
 
-    let total_tokens = block.get("totalTokens")?.as_u64().unwrap_or(0);
+    let five_hour = val.get("five_hour")?;
+    let five_hour_pct = five_hour.get("utilization")?.as_f64()?;
+    let five_hour_resets_at = five_hour
+        .get("resets_at")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<DateTime<Utc>>().ok());
 
-    let limit_status = block.get("tokenLimitStatus")?;
-    let token_limit = limit_status.get("limit")?.as_u64().unwrap_or(0);
-    let percent_used = if token_limit > 0 {
-        (total_tokens as f64 / token_limit as f64) * 100.0
-    } else {
-        0.0
-    };
-    let tokens_per_minute = block
-        .get("burnRate")
-        .and_then(|br| br.get("tokensPerMinute"))
-        .and_then(|v| v.as_f64())
-        .unwrap_or(0.0);
+    let seven_day = val.get("seven_day")?;
+    let seven_day_pct = seven_day.get("utilization")?.as_f64()?;
+
     Some(UsageStatus {
-        window_end,
-        total_tokens,
-        token_limit,
-        percent_used,
-        tokens_per_minute,
-        weekly_percent: 0.0,
-        weekly_tokens: 0,
+        five_hour_pct,
+        five_hour_resets_at,
+        seven_day_pct,
         last_fetched: Instant::now(),
     })
-}
-
-/// Sum totalTokens from non-gap blocks that started at or after window_start.
-/// If window_start is None, sums all non-gap blocks.
-fn parse_weekly_blocks(raw: &str, window_start: Option<DateTime<Utc>>) -> u64 {
-    let val: serde_json::Value = match serde_json::from_str(raw) {
-        Ok(v) => v,
-        Err(_) => return 0,
-    };
-    let blocks = match val.get("blocks").and_then(|b| b.as_array()) {
-        Some(b) => b,
-        None => return 0,
-    };
-    blocks
-        .iter()
-        .filter(|b| !b.get("isGap").and_then(|v| v.as_bool()).unwrap_or(false))
-        .filter(|b| {
-            match window_start {
-                Some(ws) => b.get("startTime")
-                    .and_then(|s| s.as_str())
-                    .and_then(|s| s.parse::<DateTime<Utc>>().ok())
-                    .map(|st| st >= ws)
-                    .unwrap_or(false),
-                None => true,
-            }
-        })
-        .filter_map(|b| b.get("totalTokens")?.as_u64())
-        .sum()
 }
 
 /// Parse Claude JSON output array, extract session_id and result text from the "result" event.

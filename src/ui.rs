@@ -82,7 +82,7 @@ pub fn draw(f: &mut Frame, app: &App) {
             (View::ProjectList, _) => {
                 "j/k=move Enter=open /=search c=CLAUDE.md q=quit | Shift+Tab=chat".to_string()
             }
-            (View::SessionList, _) => "j/k=move Enter=open /=search Esc=back".to_string(),
+            (View::SessionList, _) => "j/k=move Enter=open /=search y=copy id Esc=back".to_string(),
             (View::Conversation, _) => {
                 "j/k=scroll Ctrl+d/u=page g/G=top/bottom Esc=back".to_string()
             }
@@ -234,11 +234,16 @@ fn draw_session_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             } else {
                 format!(" [{}]", s.git_branch)
             };
+            let short_id: String = s.session_id.chars().take(8).collect();
             let prompt = truncate(&s.first_prompt, 80);
             let line = Line::from(vec![
                 Span::styled(date, Style::default().fg(Color::Yellow)),
                 Span::styled(
                     format!(" {:>3}msg", s.message_count),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    format!(" {}", short_id),
                     Style::default().fg(Color::DarkGray),
                 ),
                 Span::styled(branch, Style::default().fg(Color::Cyan)),
@@ -249,11 +254,15 @@ fn draw_session_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         })
         .collect();
 
+    let title = match &app.clipboard_msg {
+        Some(msg) => format!(" {} sessions  [{}] ", app.filtered_session_indices.len(), msg),
+        None => format!(" {} sessions ", app.filtered_session_indices.len()),
+    };
     let list = List::new(items)
         .block(
             Block::default()
                 .borders(Borders::NONE)
-                .title(format!(" {} sessions ", app.filtered_session_indices.len())),
+                .title(title),
         )
         .highlight_style(
             Style::default()
@@ -314,7 +323,6 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     };
 
     let Some(usage) = &app.usage_status else {
-        // Still loading — show session ID on the right
         let left = " Loading usage...";
         let pad = (width as usize).saturating_sub(left.len() + session_part.len());
         let line = Line::from(vec![
@@ -325,17 +333,15 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         return Paragraph::new(line);
     };
 
-    // Color based on percent_used
-    let color = if usage.percent_used >= 90.0 {
+    let color = if usage.five_hour_pct >= 90.0 {
         Color::Red
-    } else if usage.percent_used >= 70.0 {
+    } else if usage.five_hour_pct >= 70.0 {
         Color::Yellow
     } else {
         Color::Green
     };
 
-    // Countdown from window_end
-    let countdown = match usage.window_end {
+    let countdown = match usage.five_hour_resets_at {
         Some(end) => {
             let now = chrono::Utc::now();
             let remaining = end.signed_duration_since(now);
@@ -350,55 +356,11 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         None => "??".to_string(),
     };
 
-    let remaining_tokens = usage.token_limit.saturating_sub(usage.total_tokens);
-
-    // Time-to-exhaustion estimate
-    let exhaustion_part = if usage.tokens_per_minute > 0.0 {
-        let minutes_to_limit = remaining_tokens as f64 / usage.tokens_per_minute;
-        // Only show if limit would be hit within the window remaining time
-        let window_minutes_left = usage
-            .window_end
-            .map(|end| {
-                let remaining = end.signed_duration_since(chrono::Utc::now());
-                remaining.num_minutes().max(0) as f64
-            })
-            .unwrap_or(f64::MAX);
-        if minutes_to_limit < window_minutes_left {
-            let hours = minutes_to_limit / 60.0;
-            if hours >= 1.0 {
-                format!(" | ~{:.1}h to limit", hours)
-            } else {
-                format!(" | ~{}m to limit", minutes_to_limit as u64)
-            }
-        } else {
-            String::new()
-        }
-    } else {
-        String::new()
-    };
-
-    let weekly_part = if usage.weekly_tokens > 0 {
-        if usage.weekly_percent > 0.0 {
-            // weekly_token_limit is configured — show %
-            format!(
-                " | 7d: {}% ({})",
-                usage.weekly_percent as u32,
-                format_tokens(usage.weekly_tokens),
-            )
-        } else {
-            // limit unknown — show raw total only
-            format!(" | 7d: {}", format_tokens(usage.weekly_tokens))
-        }
-    } else {
-        String::new()
-    };
     let left = format!(
-        " \u{23f1} {} | ~{} remaining ({}% used){}{}",
+        " \u{23f1} {} | {}% used | 7d: {}%",
         countdown,
-        format_tokens(remaining_tokens),
-        usage.percent_used as u32,
-        exhaustion_part,
-        weekly_part,
+        usage.five_hour_pct as u32,
+        usage.seven_day_pct as u32,
     );
 
     let pad = (width as usize).saturating_sub(left.len() + session_part.len());
@@ -408,16 +370,6 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         Span::styled(session_part, Style::default().fg(Color::DarkGray)),
     ]);
     Paragraph::new(line)
-}
-
-fn format_tokens(n: u64) -> String {
-    if n >= 1_000_000 {
-        format!("{}M", n / 1_000_000)
-    } else if n >= 1_000 {
-        format!("{}K", n / 1_000)
-    } else {
-        n.to_string()
-    }
 }
 
 fn truncate(s: &str, max: usize) -> String {
