@@ -8,10 +8,13 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::data::{self, ConversationMessage, Project, SessionEntry};
 
+const OVERVIEW_PROMPT: &str = r#"You are a concise project advisor. Read the key project files (config, CLAUDE.md, main source, git log --oneline -10, git status), then respond in 2-3 sentences: what the project is, what's happening now, and one suggested next step. No bullet points, no headers, no details. Just a brief spoken-style summary."#;
+
 pub struct UsageStatus {
     pub five_hour_pct: f64,
     pub five_hour_resets_at: Option<DateTime<Utc>>,
     pub seven_day_pct: f64,
+    pub seven_day_sonnet_pct: Option<f64>,
     pub last_fetched: Instant,
 }
 
@@ -73,6 +76,14 @@ pub struct App {
 
     // Clipboard feedback
     pub clipboard_msg: Option<String>,
+
+    // Chat hint (transient, clears on next key)
+    pub chat_hint: Option<String>,
+
+    // Gateway
+    pub gateway_enabled: bool,
+    pub gateway_url: Option<String>,
+    pub gateway_headers: Option<String>,
 }
 
 impl App {
@@ -105,8 +116,13 @@ impl App {
             usage_rx: None,
             usage_fetching: false,
             clipboard_msg: None,
+            chat_hint: None,
+            gateway_url: std::env::var("ANTHROPIC_BASE_URL").ok(),
+            gateway_headers: std::env::var("ANTHROPIC_CUSTOM_HEADERS").ok(),
+            gateway_enabled: std::env::var("ANTHROPIC_BASE_URL").is_ok(),
         };
         app.fetch_usage();
+        app.send_overview();
         app
     }
 
@@ -185,6 +201,7 @@ impl App {
     // -- Chat key handlers --
 
     fn handle_chat_normal_key(&mut self, key: KeyEvent) {
+        self.chat_hint = None;
         match key.code {
             KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Char('i') | KeyCode::Enter => {
@@ -205,7 +222,15 @@ impl App {
                 self.chat_scroll = self.chat_scroll.saturating_sub(20);
             }
             KeyCode::Char('G') => self.chat_scroll = u16::MAX,
-            KeyCode::Char('g') => self.chat_scroll = 0,
+            KeyCode::Char('g') => {
+                if self.gateway_url.is_some() {
+                    self.gateway_enabled = !self.gateway_enabled;
+                } else {
+                    self.chat_hint = Some(
+                        "No gateway configured. Add to your shell profile:\n  export ANTHROPIC_BASE_URL=https://dev.sites.idies.jhu.edu/litellm\n  export ANTHROPIC_CUSTOM_HEADERS=\"x-litellm-api-key: Bearer sk-litellm-d2591383180bdbe94246734943cdd6a1\"".into()
+                    );
+                }
+            }
             KeyCode::Char('n') => {
                 if !self.chat_waiting {
                     self.chat_messages.clear();
@@ -241,18 +266,83 @@ impl App {
         }
     }
 
-    fn send_chat_message(&mut self, msg: String) {
-        self.chat_messages.push(("user".into(), msg.clone()));
+    fn send_overview(&mut self) {
+        self.chat_messages
+            .push(("user".into(), "Generating project overview...".into()));
         self.chat_error = None;
         self.chat_waiting = true;
 
-        let session_id = self.chat_session_id.clone();
+        let gw_enabled = self.gateway_enabled;
+        let gw_url = self.gateway_url.clone();
+        let gw_headers = self.gateway_headers.clone();
+        let msg = OVERVIEW_PROMPT.to_string();
 
         let (tx, rx) = mpsc::channel();
         self.response_rx = Some(rx);
 
         thread::spawn(move || {
             let mut cmd = Command::new("claude");
+            if gw_enabled {
+                if let Some(url) = &gw_url {
+                    cmd.env("ANTHROPIC_BASE_URL", url);
+                }
+                if let Some(headers) = &gw_headers {
+                    cmd.env("ANTHROPIC_CUSTOM_HEADERS", headers);
+                }
+            } else {
+                cmd.env_remove("ANTHROPIC_BASE_URL");
+                cmd.env_remove("ANTHROPIC_CUSTOM_HEADERS");
+            }
+            cmd.arg("-p").arg(&msg);
+            cmd.arg("--output-format").arg("json");
+            cmd.arg("--permission-mode").arg("dontAsk");
+
+            let result = match cmd.output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let raw = String::from_utf8_lossy(&output.stdout);
+                        parse_claude_json(&raw)
+                    } else {
+                        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                        Err(if stderr.is_empty() {
+                            "claude exited with error".into()
+                        } else {
+                            stderr
+                        })
+                    }
+                }
+                Err(e) => Err(format!("Failed to run claude: {}", e)),
+            };
+            let _ = tx.send(result);
+        });
+    }
+
+    fn send_chat_message(&mut self, msg: String) {
+        self.chat_messages.push(("user".into(), msg.clone()));
+        self.chat_error = None;
+        self.chat_waiting = true;
+
+        let session_id = self.chat_session_id.clone();
+        let gw_enabled = self.gateway_enabled;
+        let gw_url = self.gateway_url.clone();
+        let gw_headers = self.gateway_headers.clone();
+
+        let (tx, rx) = mpsc::channel();
+        self.response_rx = Some(rx);
+
+        thread::spawn(move || {
+            let mut cmd = Command::new("claude");
+            if gw_enabled {
+                if let Some(url) = &gw_url {
+                    cmd.env("ANTHROPIC_BASE_URL", url);
+                }
+                if let Some(headers) = &gw_headers {
+                    cmd.env("ANTHROPIC_CUSTOM_HEADERS", headers);
+                }
+            } else {
+                cmd.env_remove("ANTHROPIC_BASE_URL");
+                cmd.env_remove("ANTHROPIC_CUSTOM_HEADERS");
+            }
             cmd.arg("-p").arg(&msg);
             cmd.arg("--output-format").arg("json");
             cmd.arg("--disallowedTools")
@@ -584,10 +674,16 @@ fn fetch_oauth_usage() -> Option<UsageStatus> {
     let seven_day = val.get("seven_day")?;
     let seven_day_pct = seven_day.get("utilization")?.as_f64()?;
 
+    let seven_day_sonnet_pct = val
+        .get("seven_day_sonnet")
+        .and_then(|v| v.get("utilization"))
+        .and_then(|v| v.as_f64());
+
     Some(UsageStatus {
         five_hour_pct,
         five_hour_resets_at,
         seven_day_pct,
+        seven_day_sonnet_pct,
         last_fetched: Instant::now(),
     })
 }

@@ -73,7 +73,7 @@ pub fn draw(f: &mut Frame, app: &App) {
     let help = match app.mode {
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Esc=cancel | Shift+Tab=logs".to_string(),
-            _ => "i=type j/k=scroll n=new session q=quit | Shift+Tab=logs".to_string(),
+            _ => "i=type j/k=scroll n=new session g=gateway q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
             (_, InputMode::Search) => {
@@ -106,35 +106,22 @@ fn draw_chat(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     // Messages area
     let mut lines: Vec<Line> = Vec::new();
 
-    if app.chat_messages.is_empty() && !app.chat_waiting {
-        lines.push(Line::from(""));
+    for (role, content) in &app.chat_messages {
+        let (label, color) = match role.as_str() {
+            "user" => ("You:", Color::Green),
+            _ => ("Claude:", Color::Blue),
+        };
         lines.push(Line::from(Span::styled(
-            "  Hello! How can I help?",
-            Style::default().fg(Color::Cyan),
+            label,
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
         )));
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "  Press 'i' or Enter to start typing.",
-            Style::default().fg(Color::DarkGray),
-        )));
-    } else {
-        for (role, content) in &app.chat_messages {
-            let (label, color) = match role.as_str() {
-                "user" => ("You:", Color::Green),
-                _ => ("Claude:", Color::Blue),
-            };
+        for text_line in content.lines() {
             lines.push(Line::from(Span::styled(
-                label,
-                Style::default().fg(color).add_modifier(Modifier::BOLD),
+                format!("  {}", text_line),
+                Style::default().fg(Color::White),
             )));
-            for text_line in content.lines() {
-                lines.push(Line::from(Span::styled(
-                    format!("  {}", text_line),
-                    Style::default().fg(Color::White),
-                )));
-            }
-            lines.push(Line::from(""));
         }
+        lines.push(Line::from(""));
     }
 
     if app.chat_waiting {
@@ -148,6 +135,13 @@ fn draw_chat(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         lines.push(Line::from(Span::styled(
             format!("Error: {}", err),
             Style::default().fg(Color::Red),
+        )));
+    }
+
+    if let Some(hint) = &app.chat_hint {
+        lines.push(Line::from(Span::styled(
+            hint.clone(),
+            Style::default().fg(Color::Yellow),
         )));
     }
 
@@ -322,15 +316,31 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         None => String::new(),
     };
 
+    let gw_spans: Vec<Span> = if app.gateway_url.is_some() {
+        let (label, color) = if app.gateway_enabled {
+            ("GW:ON", Color::Green)
+        } else {
+            ("GW:OFF", Color::Red)
+        };
+        vec![
+            Span::raw(" "),
+            Span::styled(label, Style::default().fg(color)),
+        ]
+    } else {
+        vec![]
+    };
+    let gw_len: usize = gw_spans.iter().map(|s| s.content.len()).sum();
+
     let Some(usage) = &app.usage_status else {
         let left = " Loading usage...";
-        let pad = (width as usize).saturating_sub(left.len() + session_part.len());
-        let line = Line::from(vec![
+        let pad = (width as usize).saturating_sub(left.len() + gw_len + session_part.len());
+        let mut spans = vec![
             Span::styled(left, Style::default().fg(Color::DarkGray)),
-            Span::raw(" ".repeat(pad)),
-            Span::styled(session_part, Style::default().fg(Color::DarkGray)),
-        ]);
-        return Paragraph::new(line);
+        ];
+        spans.extend(gw_spans);
+        spans.push(Span::raw(" ".repeat(pad)));
+        spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
+        return Paragraph::new(Line::from(spans));
     };
 
     let color = if usage.five_hour_pct >= 90.0 {
@@ -356,20 +366,27 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         None => "??".to_string(),
     };
 
+    let sonnet_part = match usage.seven_day_sonnet_pct {
+        Some(pct) => format!(" | Sonnet: {}%", pct as u32),
+        None => String::new(),
+    };
+
     let left = format!(
-        " \u{23f1} {} | {}% used | 7d: {}%",
+        " \u{23f1} {} | {}% used | 7d: {}%{}",
         countdown,
         usage.five_hour_pct as u32,
         usage.seven_day_pct as u32,
+        sonnet_part,
     );
 
-    let pad = (width as usize).saturating_sub(left.len() + session_part.len());
-    let line = Line::from(vec![
+    let pad = (width as usize).saturating_sub(left.len() + gw_len + session_part.len());
+    let mut spans = vec![
         Span::styled(left, Style::default().fg(color)),
-        Span::raw(" ".repeat(pad)),
-        Span::styled(session_part, Style::default().fg(Color::DarkGray)),
-    ]);
-    Paragraph::new(line)
+    ];
+    spans.extend(gw_spans);
+    spans.push(Span::raw(" ".repeat(pad)));
+    spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
+    Paragraph::new(Line::from(spans))
 }
 
 fn truncate(s: &str, max: usize) -> String {
