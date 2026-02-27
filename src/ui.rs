@@ -156,14 +156,9 @@ fn draw_chat(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .scroll((app.chat_scroll, 0));
     f.render_widget(messages, chat_chunks[0]);
 
-    // Session bar
-    let session_text = match &app.chat_session_id {
-        Some(id) => format!(" Session: {}", &id[..id.len().min(8)]),
-        None => " Session: (new)".to_string(),
-    };
-    let session_bar =
-        Paragraph::new(session_text).style(Style::default().fg(Color::DarkGray));
-    f.render_widget(session_bar, chat_chunks[1]);
+    // Status bar: token usage + countdown
+    let status_line = build_usage_line(app);
+    f.render_widget(status_line, chat_chunks[1]);
 
     // Input box
     let is_input_active = matches!(app.input_mode, InputMode::ChatInput);
@@ -310,6 +305,58 @@ fn draw_claude_md(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .wrap(Wrap { trim: false })
         .scroll((app.scroll_offset, 0));
     f.render_widget(paragraph, area);
+}
+
+fn build_usage_line(app: &App) -> Paragraph<'static> {
+    let Some(usage) = &app.usage_status else {
+        return Paragraph::new(" Loading usage...")
+            .style(Style::default().fg(Color::DarkGray));
+    };
+
+    // Color based on percent_used
+    let color = if usage.percent_used >= 90.0 {
+        Color::Red
+    } else if usage.percent_used >= 70.0 {
+        Color::Yellow
+    } else {
+        Color::Green
+    };
+
+    // Countdown from window_end
+    let countdown = match usage.window_end {
+        Some(end) => {
+            let now = chrono::Utc::now();
+            let remaining = end.signed_duration_since(now);
+            if remaining.num_seconds() <= 0 {
+                "expired".to_string()
+            } else {
+                let h = remaining.num_hours();
+                let m = remaining.num_minutes() % 60;
+                format!("{}h{:02}m left", h, m)
+            }
+        }
+        None => "??".to_string(),
+    };
+
+    let remaining_tokens = usage.token_limit.saturating_sub(usage.total_tokens);
+    let text = format!(
+        " \u{23f1} {} | ~{} remaining ({}% used)",
+        countdown,
+        format_tokens(remaining_tokens),
+        usage.percent_used as u32,
+    );
+
+    Paragraph::new(text).style(Style::default().fg(color))
+}
+
+fn format_tokens(n: u64) -> String {
+    if n >= 1_000_000 {
+        format!("{}M", n / 1_000_000)
+    } else if n >= 1_000 {
+        format!("{}K", n / 1_000)
+    } else {
+        n.to_string()
+    }
 }
 
 fn truncate(s: &str, max: usize) -> String {

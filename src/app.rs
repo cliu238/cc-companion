@@ -1,10 +1,20 @@
 use std::process::Command;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
+use std::time::Instant;
 
+use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::data::{self, ConversationMessage, Project, SessionEntry};
+
+pub struct UsageStatus {
+    pub window_end: Option<DateTime<Utc>>,
+    pub total_tokens: u64,
+    pub token_limit: u64,
+    pub percent_used: f64,
+    pub last_fetched: Instant,
+}
 
 #[derive(PartialEq)]
 pub enum Mode {
@@ -56,13 +66,18 @@ pub struct App {
     pub chat_error: Option<String>,
     pub chat_session_id: Option<String>,
     response_rx: Option<Receiver<Result<(String, String), String>>>,
+
+    // Usage status
+    pub usage_status: Option<UsageStatus>,
+    usage_rx: Option<Receiver<Option<UsageStatus>>>,
+    usage_fetching: bool,
 }
 
 impl App {
     pub fn new() -> Self {
         let projects = data::load_projects();
         let filtered_project_indices: Vec<usize> = (0..projects.len()).collect();
-        Self {
+        let mut app = Self {
             mode: Mode::Chat,
             view: View::ProjectList,
             input_mode: InputMode::Normal,
@@ -84,10 +99,16 @@ impl App {
             chat_error: None,
             chat_session_id: None,
             response_rx: None,
-        }
+            usage_status: None,
+            usage_rx: None,
+            usage_fetching: false,
+        };
+        app.fetch_usage();
+        app
     }
 
     pub fn tick(&mut self) {
+        // Check chat response
         if let Some(rx) = &self.response_rx {
             if let Ok(result) = rx.try_recv() {
                 match result {
@@ -101,6 +122,47 @@ impl App {
                 self.response_rx = None;
             }
         }
+
+        // Check usage status response
+        if let Some(rx) = &self.usage_rx {
+            if let Ok(result) = rx.try_recv() {
+                self.usage_status = result;
+                self.usage_rx = None;
+                self.usage_fetching = false;
+            }
+        }
+
+        // Periodic usage refetch (every 60s)
+        if !self.usage_fetching {
+            let should_fetch = match &self.usage_status {
+                Some(s) => s.last_fetched.elapsed().as_secs() >= 60,
+                None => self.usage_rx.is_none(), // retry if no data and not fetching
+            };
+            if should_fetch {
+                self.fetch_usage();
+            }
+        }
+    }
+
+    fn fetch_usage(&mut self) {
+        self.usage_fetching = true;
+        let (tx, rx) = mpsc::channel();
+        self.usage_rx = Some(rx);
+
+        thread::spawn(move || {
+            let result = Command::new("npx")
+                .args(["ccusage@latest", "blocks", "--active", "--json", "--token-limit", "max"])
+                .output();
+
+            let status = match result {
+                Ok(output) if output.status.success() => {
+                    let raw = String::from_utf8_lossy(&output.stdout);
+                    parse_usage_json(&raw)
+                }
+                _ => None,
+            };
+            let _ = tx.send(status);
+        });
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) {
@@ -461,6 +523,27 @@ impl App {
             .get(self.session_idx)
             .map(|&i| &self.sessions[i])
     }
+}
+
+fn parse_usage_json(raw: &str) -> Option<UsageStatus> {
+    let val: serde_json::Value = serde_json::from_str(raw).ok()?;
+    let block = val.get("blocks")?.as_array()?.first()?;
+
+    let end_time_str = block.get("endTime")?.as_str()?;
+    let window_end = end_time_str.parse::<DateTime<Utc>>().ok();
+
+    let total_tokens = block.get("totalTokens")?.as_u64().unwrap_or(0);
+
+    let limit_status = block.get("tokenLimitStatus")?;
+    let token_limit = limit_status.get("limit")?.as_u64().unwrap_or(0);
+    let percent_used = limit_status.get("percentUsed")?.as_f64().unwrap_or(0.0);
+    Some(UsageStatus {
+        window_end,
+        total_tokens,
+        token_limit,
+        percent_used,
+        last_fetched: Instant::now(),
+    })
 }
 
 /// Parse Claude JSON output array, extract session_id and result text from the "result" event.
