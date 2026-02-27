@@ -351,11 +351,44 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     };
 
     let remaining_tokens = usage.token_limit.saturating_sub(usage.total_tokens);
+
+    // Time-to-exhaustion estimate
+    let exhaustion_part = if usage.tokens_per_minute > 0.0 {
+        let minutes_to_limit = remaining_tokens as f64 / usage.tokens_per_minute;
+        // Only show if limit would be hit within the window remaining time
+        let window_minutes_left = usage
+            .window_end
+            .map(|end| {
+                let remaining = end.signed_duration_since(chrono::Utc::now());
+                remaining.num_minutes().max(0) as f64
+            })
+            .unwrap_or(f64::MAX);
+        if minutes_to_limit < window_minutes_left {
+            let hours = minutes_to_limit / 60.0;
+            if hours >= 1.0 {
+                format!(" | ~{:.1}h to limit", hours)
+            } else {
+                format!(" | ~{}m to limit", minutes_to_limit as u64)
+            }
+        } else {
+            String::new()
+        }
+    } else {
+        String::new()
+    };
+
+    let weekly_part = if usage.weekly_tokens > 0 {
+        format!(" | 7d: {}", format_tokens(usage.weekly_tokens))
+    } else {
+        String::new()
+    };
     let left = format!(
-        " \u{23f1} {} | ~{} remaining ({}% used)",
+        " \u{23f1} {} | ~{} remaining ({}% used){}{}",
         countdown,
         format_tokens(remaining_tokens),
         usage.percent_used as u32,
+        exhaustion_part,
+        weekly_part,
     );
 
     let pad = (width as usize).saturating_sub(left.len() + session_part.len());

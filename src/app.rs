@@ -13,6 +13,8 @@ pub struct UsageStatus {
     pub total_tokens: u64,
     pub token_limit: u64,
     pub percent_used: f64,
+    pub tokens_per_minute: f64,
+    pub weekly_tokens: u64,
     pub last_fetched: Instant,
 }
 
@@ -154,13 +156,28 @@ impl App {
                 .args(["ccusage@latest", "blocks", "--active", "--json", "--token-limit", "max"])
                 .output();
 
-            let status = match result {
+            let mut status = match result {
                 Ok(output) if output.status.success() => {
                     let raw = String::from_utf8_lossy(&output.stdout);
                     parse_usage_json(&raw)
                 }
                 _ => None,
             };
+
+            // Fetch 7-day rolling token total
+            if let Some(ref mut s) = status {
+                let since = (chrono::Utc::now() - chrono::Duration::days(7)).format("%Y%m%d").to_string();
+                if let Ok(output) = Command::new("npx")
+                    .args(["ccusage@latest", "daily", "--json", "--since", &since])
+                    .output()
+                {
+                    if output.status.success() {
+                        let raw = String::from_utf8_lossy(&output.stdout);
+                        s.weekly_tokens = parse_weekly_tokens(&raw);
+                    }
+                }
+            }
+
             let _ = tx.send(status);
         });
     }
@@ -536,14 +553,40 @@ fn parse_usage_json(raw: &str) -> Option<UsageStatus> {
 
     let limit_status = block.get("tokenLimitStatus")?;
     let token_limit = limit_status.get("limit")?.as_u64().unwrap_or(0);
-    let percent_used = limit_status.get("percentUsed")?.as_f64().unwrap_or(0.0);
+    let percent_used = if token_limit > 0 {
+        (total_tokens as f64 / token_limit as f64) * 100.0
+    } else {
+        0.0
+    };
+    let tokens_per_minute = block
+        .get("burnRate")
+        .and_then(|br| br.get("tokensPerMinute"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
     Some(UsageStatus {
         window_end,
         total_tokens,
         token_limit,
         percent_used,
+        tokens_per_minute,
+        weekly_tokens: 0,
         last_fetched: Instant::now(),
     })
+}
+
+fn parse_weekly_tokens(raw: &str) -> u64 {
+    let val: serde_json::Value = match serde_json::from_str(raw) {
+        Ok(v) => v,
+        Err(_) => return 0,
+    };
+    val.get("daily")
+        .and_then(|d| d.as_array())
+        .map(|days| {
+            days.iter()
+                .filter_map(|d| d.get("totalTokens")?.as_u64())
+                .sum()
+        })
+        .unwrap_or(0)
 }
 
 /// Parse Claude JSON output array, extract session_id and result text from the "result" event.
