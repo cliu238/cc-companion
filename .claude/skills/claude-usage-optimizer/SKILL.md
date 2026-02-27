@@ -27,17 +27,22 @@ Key facts:
 
 ## Rate Limit Mechanics
 
-### 5-Hour Rolling Window
-- Quota resets on a **continuous 5-hour rolling window**, not at a fixed time
-- As oldest messages pass the 5-hour mark, capacity gradually frees up
-- There is no single "reset moment" — the window slides continuously
-- Check current block: `npx ccusage@latest blocks --active`
+### 5-Hour Window
+- `/usage` labels this **"Current session"** — this is the 5-hour window, NOT the Claude Code session
+- Observed behavior: **discrete 5-hour blocks with fixed reset times** (e.g., 10am-3pm ET), visible via `/usage` as "Resets Xpm"
+  - **Concern**: Anthropic officially describes this as a "rolling window" that begins with your first prompt; however ccusage data and `/usage` reset times show fixed block boundaries. Treating as discrete blocks for now.
+- `npx ccusage@latest blocks --active` shows current block's token usage, limit, burn rate, and projections
+- The `tokenLimitStatus.limit` from ccusage gives the exact 5-hour token limit for your plan
+- ccusage and `/usage` may show different percentages (~4% gap) — likely due to an internal **credit-weighted** system where different models consume credits at different rates (Opus ~5x Sonnet)
 
 ### Weekly Limits
-- A separate weekly cap exists on top of the 5-hour window
+- A **separate weekly cap** exists on top of the 5-hour window — hitting either one locks you out independently
 - Shared across all models and platforms (web + Code)
 - Fewer than 2% of Sonnet users hit it; Opus users hit it more often
-- Weekly limit resets on a rolling 7-day basis
+- Resets on a **fixed 7-day cycle** (visible via `/usage` as "Resets [date]")
+- **Weekly token limit is undisclosed and possibly dynamic** — Anthropic does not publish exact numbers, and ccusage does NOT provide it
+- Estimated weekly limits (empirical, reverse-calculated from `/usage`): **Max 5x ~300M tokens**
+- To reverse-calculate: `weekly_limit = weekly_tokens_from_ccusage / (usage_percent / 100)` — more accurate at higher usage %
 
 ### When Limits Are Hit
 - Claude Code shows a countdown timer until capacity returns

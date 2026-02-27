@@ -1,12 +1,59 @@
+use std::fs;
 use std::process::Command;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::time::Instant;
 
-use chrono::{DateTime, Utc};
+use chrono::{Datelike, DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::data::{self, ConversationMessage, Project, SessionEntry};
+
+struct WeeklyConfig {
+    token_limit: u64,
+    window_start: Option<DateTime<Utc>>,
+}
+
+/// Load weekly config from limits.json.
+fn load_weekly_config() -> WeeklyConfig {
+    #[derive(serde::Deserialize)]
+    struct LimitsConfig {
+        #[serde(default)]
+        weekly_token_limit: u64,
+        weekly_reset_weekday: Option<u32>, // Mon=0..Sun=6
+        weekly_reset_hour_utc: Option<u32>,
+    }
+    let path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("limits.json")))
+        .unwrap_or_else(|| "limits.json".into());
+    let content = fs::read_to_string(&path)
+        .or_else(|_| fs::read_to_string("limits.json"))
+        .unwrap_or_default();
+    let cfg = serde_json::from_str::<LimitsConfig>(&content).unwrap_or(LimitsConfig {
+        weekly_token_limit: 0,
+        weekly_reset_weekday: None,
+        weekly_reset_hour_utc: None,
+    });
+
+    // Find most recent reset time from weekday + hour
+    let window_start = match (cfg.weekly_reset_weekday, cfg.weekly_reset_hour_utc) {
+        (Some(wd), Some(hour)) => {
+            let now = Utc::now();
+            let today = now.date_naive();
+            let current_wd = today.weekday().num_days_from_monday();
+            let days_since = ((current_wd + 7 - wd) % 7) as i64;
+            let reset_date = today - chrono::Duration::days(days_since);
+            let reset_time = reset_date
+                .and_hms_opt(hour, 0, 0)
+                .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc));
+            reset_time.map(|rt| if rt > now { rt - chrono::Duration::days(7) } else { rt })
+        }
+        _ => None,
+    };
+
+    WeeklyConfig { token_limit: cfg.weekly_token_limit, window_start }
+}
 
 pub struct UsageStatus {
     pub window_end: Option<DateTime<Utc>>,
@@ -15,6 +62,7 @@ pub struct UsageStatus {
     pub percent_used: f64,
     pub tokens_per_minute: f64,
     pub weekly_tokens: u64,
+    pub weekly_percent: f64,
     pub last_fetched: Instant,
 }
 
@@ -150,6 +198,7 @@ impl App {
         self.usage_fetching = true;
         let (tx, rx) = mpsc::channel();
         self.usage_rx = Some(rx);
+        let weekly_cfg = load_weekly_config();
 
         thread::spawn(move || {
             let result = Command::new("npx")
@@ -164,18 +213,28 @@ impl App {
                 _ => None,
             };
 
-            // Fetch 7-day rolling token total
             if let Some(ref mut s) = status {
-                let since = (chrono::Utc::now() - chrono::Duration::days(7)).format("%Y%m%d").to_string();
+                // Weekly tokens: sum blocks within the billing week window
+                let since = match weekly_cfg.window_start {
+                    Some(ws) => ws.format("%Y%m%d").to_string(),
+                    None => (chrono::Utc::now() - chrono::Duration::days(7)).format("%Y%m%d").to_string(),
+                };
                 if let Ok(output) = Command::new("npx")
-                    .args(["ccusage@latest", "daily", "--json", "--since", &since])
+                    .args(["ccusage@latest", "blocks", "--json", "--since", &since])
                     .output()
                 {
                     if output.status.success() {
                         let raw = String::from_utf8_lossy(&output.stdout);
-                        s.weekly_tokens = parse_weekly_tokens(&raw);
+                        s.weekly_tokens = parse_weekly_blocks(&raw, weekly_cfg.window_start);
                     }
                 }
+
+                // Weekly %: only when limit is configured
+                s.weekly_percent = if weekly_cfg.token_limit > 0 {
+                    (s.weekly_tokens as f64 / weekly_cfg.token_limit as f64) * 100.0
+                } else {
+                    0.0
+                };
             }
 
             let _ = tx.send(status);
@@ -569,24 +628,38 @@ fn parse_usage_json(raw: &str) -> Option<UsageStatus> {
         token_limit,
         percent_used,
         tokens_per_minute,
+        weekly_percent: 0.0,
         weekly_tokens: 0,
         last_fetched: Instant::now(),
     })
 }
 
-fn parse_weekly_tokens(raw: &str) -> u64 {
+/// Sum totalTokens from non-gap blocks that started at or after window_start.
+/// If window_start is None, sums all non-gap blocks.
+fn parse_weekly_blocks(raw: &str, window_start: Option<DateTime<Utc>>) -> u64 {
     let val: serde_json::Value = match serde_json::from_str(raw) {
         Ok(v) => v,
         Err(_) => return 0,
     };
-    val.get("daily")
-        .and_then(|d| d.as_array())
-        .map(|days| {
-            days.iter()
-                .filter_map(|d| d.get("totalTokens")?.as_u64())
-                .sum()
+    let blocks = match val.get("blocks").and_then(|b| b.as_array()) {
+        Some(b) => b,
+        None => return 0,
+    };
+    blocks
+        .iter()
+        .filter(|b| !b.get("isGap").and_then(|v| v.as_bool()).unwrap_or(false))
+        .filter(|b| {
+            match window_start {
+                Some(ws) => b.get("startTime")
+                    .and_then(|s| s.as_str())
+                    .and_then(|s| s.parse::<DateTime<Utc>>().ok())
+                    .map(|st| st >= ws)
+                    .unwrap_or(false),
+                None => true,
+            }
         })
-        .unwrap_or(0)
+        .filter_map(|b| b.get("totalTokens")?.as_u64())
+        .sum()
 }
 
 /// Parse Claude JSON output array, extract session_id and result text from the "result" event.

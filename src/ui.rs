@@ -378,7 +378,17 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     };
 
     let weekly_part = if usage.weekly_tokens > 0 {
-        format!(" | 7d: {}", format_tokens(usage.weekly_tokens))
+        if usage.weekly_percent > 0.0 {
+            // weekly_token_limit is configured — show %
+            format!(
+                " | 7d: {}% ({})",
+                usage.weekly_percent as u32,
+                format_tokens(usage.weekly_tokens),
+            )
+        } else {
+            // limit unknown — show raw total only
+            format!(" | 7d: {}", format_tokens(usage.weekly_tokens))
+        }
     } else {
         String::new()
     };
