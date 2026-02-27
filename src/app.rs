@@ -315,8 +315,7 @@ impl App {
         let gw_enabled = self.gateway_enabled;
         let gw_url = self.gateway_url.clone();
         let gw_headers = self.gateway_headers.clone();
-        let tone_prompt = self.chat_tone.system_prompt();
-        let msg = OVERVIEW_PROMPT.to_string();
+        let msg = format!("[Tone: {}]\n\n{}", self.chat_tone.system_prompt(), OVERVIEW_PROMPT);
 
         let (tx, rx) = mpsc::channel();
         self.response_rx = Some(rx);
@@ -337,7 +336,6 @@ impl App {
             cmd.arg("-p").arg(&msg);
             cmd.arg("--output-format").arg("json");
             cmd.arg("--permission-mode").arg("dontAsk");
-            cmd.arg("--append-system-prompt").arg(tone_prompt);
 
             let result = match cmd.output() {
                 Ok(output) => {
@@ -368,7 +366,7 @@ impl App {
         let gw_enabled = self.gateway_enabled;
         let gw_url = self.gateway_url.clone();
         let gw_headers = self.gateway_headers.clone();
-        let tone_prompt = self.chat_tone.system_prompt();
+        let full_msg = format!("[Tone: {}]\n\n{}", self.chat_tone.system_prompt(), msg);
 
         let (tx, rx) = mpsc::channel();
         self.response_rx = Some(rx);
@@ -386,12 +384,11 @@ impl App {
                 cmd.env_remove("ANTHROPIC_BASE_URL");
                 cmd.env_remove("ANTHROPIC_CUSTOM_HEADERS");
             }
-            cmd.arg("-p").arg(&msg);
+            cmd.arg("-p").arg(&full_msg);
             cmd.arg("--output-format").arg("json");
             cmd.arg("--disallowedTools")
                 .arg("Write,Edit,MultiEdit,TodoWrite");
             cmd.arg("--permission-mode").arg("dontAsk");
-            cmd.arg("--append-system-prompt").arg(tone_prompt);
             if let Some(id) = &session_id {
                 cmd.arg("--resume").arg(id);
             }
