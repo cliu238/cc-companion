@@ -17,12 +17,16 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     .split(f.area());
 
     // Title bar
+    let cwd_suffix = std::env::current_dir()
+        .ok()
+        .map(|p| format!(" | {}", p.display()))
+        .unwrap_or_default();
     let title = match app.mode {
         Mode::Chat => {
             if app.chat_session_id.is_some() {
-                "cc-companion | Chat".to_string()
+                format!("cc-companion | Chat{cwd_suffix}")
             } else {
-                "cc-companion | Chat (new session)".to_string()
+                format!("cc-companion | Chat (new session){cwd_suffix}")
             }
         }
         Mode::LogViewer => match &app.view {
@@ -108,15 +112,18 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     // Messages area
     let mut lines: Vec<Line> = Vec::new();
     let msg_count = app.chat_messages.len();
-    let highlight_last = app.new_msg_at.is_some_and(|t| t.elapsed().as_secs() < 2);
+    let blink_on = app.new_msg_at.is_some_and(|t| {
+        let elapsed = t.elapsed();
+        elapsed.as_secs() < 4 && elapsed.as_millis() / 500 % 2 == 0
+    });
 
     for (i, (role, content)) in app.chat_messages.iter().enumerate() {
-        let is_new = highlight_last && i == msg_count - 1;
+        let is_new = blink_on && i == msg_count - 1;
         let (label, color) = match role.as_str() {
             "user" => ("You:", Color::Green),
-            _ => ("Claude:", Color::Blue),
+            _ => ("cc-companion:", Color::Blue),
         };
-        let bg = if is_new { Some(Color::DarkGray) } else { None };
+        let bg = if is_new { Some(Color::Rgb(60, 60, 120)) } else { None };
         let label_style = Style::default().fg(color).add_modifier(Modifier::BOLD);
         let label_style = if let Some(bg) = bg { label_style.bg(bg) } else { label_style };
         lines.push(Line::from(Span::styled(label, label_style)));
@@ -132,8 +139,11 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     }
 
     if app.chat_waiting {
+        let secs = app.chat_waiting_since
+            .map(|t| t.elapsed().as_secs())
+            .unwrap_or(0);
         lines.push(Line::from(Span::styled(
-            "Thinking...",
+            format!("Thinking... {}s", secs),
             Style::default().fg(Color::Yellow),
         )));
     }

@@ -114,6 +114,7 @@ pub struct App {
     pub chat_input: String,
     pub chat_scroll: u16,
     pub chat_waiting: bool,
+    pub chat_waiting_since: Option<Instant>,
     pub chat_error: Option<String>,
     pub chat_session_id: Option<String>,
     response_rx: Option<Receiver<Result<(String, String), String>>>,
@@ -172,6 +173,7 @@ impl App {
             chat_input: String::new(),
             chat_scroll: 0,
             chat_waiting: false,
+            chat_waiting_since: None,
             chat_error: None,
             chat_session_id: None,
             response_rx: None,
@@ -211,6 +213,7 @@ impl App {
                 }
                 self.chat_scroll = u16::MAX;
                 self.chat_waiting = false;
+                self.chat_waiting_since = None;
                 self.response_rx = None;
             }
         }
@@ -480,6 +483,7 @@ impl App {
     fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool) {
         self.chat_error = None;
         self.chat_waiting = true;
+        self.chat_waiting_since = Some(Instant::now());
 
         let session_id = if resume { self.chat_session_id.clone() } else { None };
         let gw_enabled = self.gateway_enabled;
