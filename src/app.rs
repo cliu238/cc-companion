@@ -309,60 +309,21 @@ impl App {
     fn send_overview(&mut self) {
         self.chat_messages
             .push(("user".into(), "Generating project overview...".into()));
-        self.chat_error = None;
-        self.chat_waiting = true;
-
-        let gw_enabled = self.gateway_enabled;
-        let gw_url = self.gateway_url.clone();
-        let gw_headers = self.gateway_headers.clone();
-        let msg = format!("[Tone: {}]\n\n{}", self.chat_tone.system_prompt(), OVERVIEW_PROMPT);
-
-        let (tx, rx) = mpsc::channel();
-        self.response_rx = Some(rx);
-
-        thread::spawn(move || {
-            let mut cmd = Command::new("claude");
-            if gw_enabled {
-                if let Some(url) = &gw_url {
-                    cmd.env("ANTHROPIC_BASE_URL", url);
-                }
-                if let Some(headers) = &gw_headers {
-                    cmd.env("ANTHROPIC_CUSTOM_HEADERS", headers);
-                }
-            } else {
-                cmd.env_remove("ANTHROPIC_BASE_URL");
-                cmd.env_remove("ANTHROPIC_CUSTOM_HEADERS");
-            }
-            cmd.arg("-p").arg(&msg);
-            cmd.arg("--output-format").arg("json");
-            cmd.arg("--permission-mode").arg("dontAsk");
-
-            let result = match cmd.output() {
-                Ok(output) => {
-                    if output.status.success() {
-                        let raw = String::from_utf8_lossy(&output.stdout);
-                        parse_claude_json(&raw)
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                        Err(if stderr.is_empty() {
-                            "claude exited with error".into()
-                        } else {
-                            stderr
-                        })
-                    }
-                }
-                Err(e) => Err(format!("Failed to run claude: {}", e)),
-            };
-            let _ = tx.send(result);
-        });
+        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false);
     }
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat_messages.push(("user".into(), msg.clone()));
+        self.spawn_claude(msg, true, true);
+    }
+
+    /// Shared helper: spawn a background `claude` CLI call.
+    /// `resume` — attach to existing session; `read_only` — disallow write tools.
+    fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool) {
         self.chat_error = None;
         self.chat_waiting = true;
 
-        let session_id = self.chat_session_id.clone();
+        let session_id = if resume { self.chat_session_id.clone() } else { None };
         let gw_enabled = self.gateway_enabled;
         let gw_url = self.gateway_url.clone();
         let gw_headers = self.gateway_headers.clone();
@@ -386,9 +347,11 @@ impl App {
             }
             cmd.arg("-p").arg(&full_msg);
             cmd.arg("--output-format").arg("json");
-            cmd.arg("--disallowedTools")
-                .arg("Write,Edit,MultiEdit,TodoWrite");
             cmd.arg("--permission-mode").arg("dontAsk");
+            if read_only {
+                cmd.arg("--disallowedTools")
+                    .arg("Write,Edit,MultiEdit,TodoWrite");
+            }
             if let Some(id) = &session_id {
                 cmd.arg("--resume").arg(id);
             }
