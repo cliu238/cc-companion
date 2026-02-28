@@ -71,6 +71,20 @@ pub enum InputMode {
     Normal,
     Search,
     ChatInput,
+    TaskInput,
+}
+
+pub enum TaskStatus {
+    Running,
+    Done,
+    Error,
+}
+
+pub struct BackgroundTask {
+    pub command: String,
+    pub status: TaskStatus,
+    pub output: Option<String>,
+    rx: Receiver<Result<String, String>>,
 }
 
 pub struct App {
@@ -122,6 +136,17 @@ pub struct App {
 
     // Chat tone
     pub chat_tone: ChatTone,
+
+    // New message highlight
+    pub new_msg_at: Option<Instant>,
+
+    // Background tasks
+    pub tasks: Vec<BackgroundTask>,
+    pub show_task_input: bool,
+    pub task_input: String,
+    pub show_task_list: bool,
+    pub task_list_idx: usize,
+    pub task_scroll: u16,
 }
 
 impl App {
@@ -159,6 +184,13 @@ impl App {
             gateway_headers: std::env::var("ANTHROPIC_CUSTOM_HEADERS").ok(),
             gateway_enabled: std::env::var("ANTHROPIC_BASE_URL").is_ok(),
             chat_tone: ChatTone::Advisor,
+            new_msg_at: None,
+            tasks: Vec::new(),
+            show_task_input: false,
+            task_input: String::new(),
+            show_task_list: false,
+            task_list_idx: 0,
+            task_scroll: 0,
         };
         app.fetch_usage();
         app.send_overview();
@@ -173,9 +205,11 @@ impl App {
                     Ok((session_id, text)) => {
                         self.chat_session_id = Some(session_id);
                         self.chat_messages.push(("assistant".into(), text));
+                        self.new_msg_at = Some(Instant::now());
                     }
                     Err(e) => self.chat_error = Some(e),
                 }
+                self.chat_scroll = u16::MAX;
                 self.chat_waiting = false;
                 self.response_rx = None;
             }
@@ -187,6 +221,24 @@ impl App {
                 self.usage_status = result;
                 self.usage_rx = None;
                 self.usage_fetching = false;
+            }
+        }
+
+        // Check background tasks
+        for task in &mut self.tasks {
+            if matches!(task.status, TaskStatus::Running) {
+                if let Ok(result) = task.rx.try_recv() {
+                    match result {
+                        Ok(output) => {
+                            task.status = TaskStatus::Done;
+                            task.output = Some(output);
+                        }
+                        Err(e) => {
+                            task.status = TaskStatus::Error;
+                            task.output = Some(e);
+                        }
+                    }
+                }
             }
         }
 
@@ -217,6 +269,7 @@ impl App {
         match self.input_mode {
             InputMode::Search => self.handle_search_key(key),
             InputMode::ChatInput => self.handle_chat_input_key(key),
+            InputMode::TaskInput => self.handle_task_input_key(key),
             InputMode::Normal => {
                 // Shift+Tab toggles mode at top-level views
                 if key.code == KeyCode::BackTab {
@@ -241,12 +294,57 @@ impl App {
 
     fn handle_chat_normal_key(&mut self, key: KeyEvent) {
         self.chat_hint = None;
+
+        // Task list popup intercepts keys when visible
+        if self.show_task_list {
+            match key.code {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    if !self.tasks.is_empty() {
+                        self.task_list_idx = (self.task_list_idx + 1).min(self.tasks.len() - 1);
+                        self.task_scroll = 0;
+                    }
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    self.task_list_idx = self.task_list_idx.saturating_sub(1);
+                    self.task_scroll = 0;
+                }
+                KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.task_scroll = self.task_scroll.saturating_add(10);
+                }
+                KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.task_scroll = self.task_scroll.saturating_sub(10);
+                }
+                KeyCode::Char('D') => {
+                    if let Some(task) = self.tasks.get(self.task_list_idx) {
+                        if !matches!(task.status, TaskStatus::Running) {
+                            self.tasks.remove(self.task_list_idx);
+                            if self.task_list_idx > 0 && self.task_list_idx >= self.tasks.len() {
+                                self.task_list_idx = self.tasks.len().saturating_sub(1);
+                            }
+                        }
+                    }
+                }
+                KeyCode::Esc | KeyCode::Char('X') => self.show_task_list = false,
+                _ => {}
+            }
+            return;
+        }
+
         match key.code {
             KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Char('i') | KeyCode::Enter => {
                 if !self.chat_waiting {
                     self.input_mode = InputMode::ChatInput;
                 }
+            }
+            KeyCode::Char('x') => {
+                self.show_task_input = true;
+                self.task_input.clear();
+                self.input_mode = InputMode::TaskInput;
+            }
+            KeyCode::Char('X') => {
+                self.show_task_list = !self.show_task_list;
+                self.task_scroll = 0;
             }
             KeyCode::Char('j') | KeyCode::Down => {
                 self.chat_scroll = self.chat_scroll.saturating_add(1);
@@ -306,6 +404,64 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    fn handle_task_input_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.show_task_input = false;
+                self.task_input.clear();
+                self.input_mode = InputMode::Normal;
+            }
+            KeyCode::Enter => {
+                let cmd = self.task_input.trim().to_string();
+                if !cmd.is_empty() {
+                    self.spawn_task(cmd);
+                }
+                self.show_task_input = false;
+                self.task_input.clear();
+                self.input_mode = InputMode::Normal;
+            }
+            KeyCode::Backspace => {
+                self.task_input.pop();
+            }
+            KeyCode::Char(c) => {
+                self.task_input.push(c);
+            }
+            _ => {}
+        }
+    }
+
+    fn spawn_task(&mut self, command: String) {
+        let (tx, rx) = mpsc::channel();
+        self.tasks.push(BackgroundTask {
+            command: command.clone(),
+            status: TaskStatus::Running,
+            output: None,
+            rx,
+        });
+        thread::spawn(move || {
+            let result = Command::new("sh")
+                .arg("-c")
+                .arg(&command)
+                .output();
+            let _ = tx.send(match result {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                    if output.status.success() {
+                        Ok(if stderr.is_empty() { stdout } else { format!("{}\n{}", stdout, stderr) })
+                    } else {
+                        Err(if stderr.is_empty() {
+                            format!("exit code: {}", output.status)
+                        } else {
+                            stderr
+                        })
+                    }
+                }
+                Err(e) => Err(format!("Failed to spawn: {}", e)),
+            });
+        });
     }
 
     fn send_overview(&mut self) {

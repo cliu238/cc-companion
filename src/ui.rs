@@ -6,9 +6,9 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{App, InputMode, Mode, View};
+use crate::app::{App, InputMode, Mode, TaskStatus, View};
 
-pub fn draw(f: &mut Frame, app: &App) {
+pub fn draw(f: &mut Frame, app: &mut App) {
     let chunks = Layout::vertical([
         Constraint::Length(1),
         Constraint::Min(0),
@@ -73,7 +73,9 @@ pub fn draw(f: &mut Frame, app: &App) {
     let help = match app.mode {
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Esc=cancel | Shift+Tab=logs".to_string(),
-            _ => "i=type j/k=scroll n=new t=tone g=gateway q=quit | Shift+Tab=logs".to_string(),
+            InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
+            _ if app.show_task_list => "j/k=select Ctrl+d/u=scroll D=delete Esc=close".to_string(),
+            _ => "i=type x=task X=tasks j/k=scroll n=new t=tone g=gw q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
             (_, InputMode::Search) => {
@@ -94,7 +96,7 @@ pub fn draw(f: &mut Frame, app: &App) {
     f.render_widget(help_bar, chunks[2]);
 }
 
-fn draw_chat(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     let input_height = 3u16;
     let chat_chunks = Layout::vertical([
         Constraint::Min(0),
@@ -105,20 +107,25 @@ fn draw_chat(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     // Messages area
     let mut lines: Vec<Line> = Vec::new();
+    let msg_count = app.chat_messages.len();
+    let highlight_last = app.new_msg_at.is_some_and(|t| t.elapsed().as_secs() < 2);
 
-    for (role, content) in &app.chat_messages {
+    for (i, (role, content)) in app.chat_messages.iter().enumerate() {
+        let is_new = highlight_last && i == msg_count - 1;
         let (label, color) = match role.as_str() {
             "user" => ("You:", Color::Green),
-            _ => ("Claude:", Color::Blue),
+            _ => ("Claude:", if is_new { Color::Yellow } else { Color::Blue }),
         };
-        lines.push(Line::from(Span::styled(
-            label,
-            Style::default().fg(color).add_modifier(Modifier::BOLD),
-        )));
+        let mut label_style = Style::default().fg(color).add_modifier(Modifier::BOLD);
+        if is_new {
+            label_style = label_style.add_modifier(Modifier::REVERSED);
+        }
+        lines.push(Line::from(Span::styled(label, label_style)));
+        let text_color = if is_new { Color::Yellow } else { Color::White };
         for text_line in content.lines() {
             lines.push(Line::from(Span::styled(
                 format!("  {}", text_line),
-                Style::default().fg(Color::White),
+                Style::default().fg(text_color),
             )));
         }
         lines.push(Line::from(""));
@@ -145,6 +152,8 @@ fn draw_chat(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         )));
     }
 
+    let max_scroll = (lines.len() as u16).saturating_sub(1);
+    app.chat_scroll = app.chat_scroll.min(max_scroll);
     let messages = Paragraph::new(lines)
         .wrap(Wrap { trim: false })
         .scroll((app.chat_scroll, 0));
@@ -176,6 +185,14 @@ fn draw_chat(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         let cursor_x = chat_chunks[2].x + app.chat_input.len() as u16 + 1;
         let cursor_y = chat_chunks[2].y + 1;
         f.set_cursor_position((cursor_x, cursor_y));
+    }
+
+    // Task popups (rendered over chat)
+    if app.show_task_input {
+        draw_task_input_popup(f, app, area);
+    }
+    if app.show_task_list {
+        draw_task_list_popup(f, app, area);
     }
 }
 
@@ -316,8 +333,10 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         None => String::new(),
     };
 
-    let gw_spans: Vec<Span> = if app.gateway_url.is_some() {
-        let (label, color) = if app.gateway_enabled {
+    let gw_spans: Vec<Span> = {
+        let (label, color) = if app.gateway_url.is_none() {
+            ("GW:N/A", Color::DarkGray)
+        } else if app.gateway_enabled {
             ("GW:ON", Color::Green)
         } else {
             ("GW:OFF", Color::Red)
@@ -326,8 +345,6 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
             Span::raw(" "),
             Span::styled(label, Style::default().fg(color)),
         ]
-    } else {
-        vec![]
     };
     let gw_len: usize = gw_spans.iter().map(|s| s.content.len()).sum();
 
@@ -337,14 +354,29 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     };
     let tone_len: usize = tone_spans.iter().map(|s| s.content.len()).sum();
 
+    let running_count = app.tasks.iter().filter(|t| matches!(t.status, TaskStatus::Running)).count();
+    let task_spans: Vec<Span> = if !app.tasks.is_empty() {
+        let label = if running_count > 0 {
+            format!(" Tasks:{}/{}", running_count, app.tasks.len())
+        } else {
+            format!(" Tasks:{}", app.tasks.len())
+        };
+        let color = if running_count > 0 { Color::Yellow } else { Color::DarkGray };
+        vec![Span::styled(label, Style::default().fg(color))]
+    } else {
+        vec![]
+    };
+    let task_len: usize = task_spans.iter().map(|s| s.content.len()).sum();
+
     let Some(usage) = &app.usage_status else {
         let left = " Loading usage...";
-        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + session_part.len());
+        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + session_part.len());
         let mut spans = vec![
             Span::styled(left, Style::default().fg(Color::DarkGray)),
         ];
         spans.extend(gw_spans);
         spans.extend(tone_spans);
+        spans.extend(task_spans);
         spans.push(Span::raw(" ".repeat(pad)));
         spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
         return Paragraph::new(Line::from(spans));
@@ -386,15 +418,113 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         sonnet_part,
     );
 
-    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + session_part.len());
+    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + session_part.len());
     let mut spans = vec![
         Span::styled(left, Style::default().fg(color)),
     ];
     spans.extend(gw_spans);
     spans.extend(tone_spans);
+    spans.extend(task_spans);
     spans.push(Span::raw(" ".repeat(pad)));
     spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
     Paragraph::new(Line::from(spans))
+}
+
+fn draw_task_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    let popup_w = (area.width * 60 / 100).max(30);
+    let popup_h = 3;
+    let x = area.x + (area.width.saturating_sub(popup_w)) / 2;
+    let y = area.y + (area.height.saturating_sub(popup_h)) / 2;
+    let popup_area = ratatui::layout::Rect::new(x, y, popup_w, popup_h);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow))
+        .title(" Run task (sh -c) ");
+    let input = Paragraph::new(app.task_input.as_str()).block(block);
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+    f.render_widget(input, popup_area);
+
+    let cursor_x = popup_area.x + app.task_input.len() as u16 + 1;
+    let cursor_y = popup_area.y + 1;
+    f.set_cursor_position((cursor_x, cursor_y));
+}
+
+fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    let popup_w = (area.width * 80 / 100).max(40);
+    let popup_h = (area.height * 80 / 100).max(10);
+    let x = area.x + (area.width.saturating_sub(popup_w)) / 2;
+    let y = area.y + (area.height.saturating_sub(popup_h)) / 2;
+    let popup_area = ratatui::layout::Rect::new(x, y, popup_w, popup_h);
+
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+
+    let list_h = (popup_h * 35 / 100).max(3);
+    let output_h = popup_h.saturating_sub(list_h);
+    let chunks = Layout::vertical([
+        Constraint::Length(list_h),
+        Constraint::Length(output_h),
+    ])
+    .split(popup_area);
+
+    // Task list
+    let items: Vec<ListItem> = app
+        .tasks
+        .iter()
+        .map(|t| {
+            let icon = match t.status {
+                TaskStatus::Running => Span::styled("... ", Style::default().fg(Color::Yellow)),
+                TaskStatus::Done => Span::styled(" OK ", Style::default().fg(Color::Green)),
+                TaskStatus::Error => Span::styled("ERR ", Style::default().fg(Color::Red)),
+            };
+            let cmd = Span::styled(
+                truncate(&t.command, (popup_w as usize).saturating_sub(8)),
+                Style::default().fg(Color::White),
+            );
+            ListItem::new(Line::from(vec![icon, cmd]))
+        })
+        .collect();
+
+    let list_title = format!(" {} tasks ", app.tasks.len());
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow))
+                .title(list_title),
+        )
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
+    let mut state = ListState::default();
+    if !app.tasks.is_empty() {
+        state.select(Some(app.task_list_idx));
+    }
+    f.render_stateful_widget(list, chunks[0], &mut state);
+
+    // Selected task output
+    let output_text = if let Some(task) = app.tasks.get(app.task_list_idx) {
+        match &task.output {
+            Some(text) => text.clone(),
+            None if matches!(task.status, TaskStatus::Running) => "Running...".to_string(),
+            _ => String::new(),
+        }
+    } else {
+        "No tasks".to_string()
+    };
+
+    let output = Paragraph::new(output_text)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray))
+                .title(" Output "),
+        )
+        .wrap(Wrap { trim: false })
+        .scroll((app.task_scroll, 0));
+    f.render_widget(output, chunks[1]);
 }
 
 fn truncate(s: &str, max: usize) -> String {
