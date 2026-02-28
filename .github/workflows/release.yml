@@ -23,9 +23,22 @@ jobs:
           targets: ${{ matrix.target }}
       - run: cargo build --release --target ${{ matrix.target }}
       - run: cp target/${{ matrix.target }}/release/cc-companion ${{ matrix.artifact }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
           repository: cliu238/cc-companion-releases
           tag_name: ${{ github.ref_name }}
           token: ${{ secrets.RELEASE_PAT }}
-          files: ${{ matrix.artifact }}
+          files: artifacts/*
