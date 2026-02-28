@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::data::{self, ConversationMessage, Project, SessionEntry};
+use crate::scheduler::Scheduler;
 
 const BASE_SYSTEM_PROMPT: &str = include_str!("../system_prompt.md");
 
@@ -49,6 +50,7 @@ pub struct UsageStatus {
     pub five_hour_pct: f64,
     pub five_hour_resets_at: Option<DateTime<Utc>>,
     pub seven_day_pct: f64,
+    pub seven_day_resets_at: Option<DateTime<Utc>>,
     pub seven_day_sonnet_pct: Option<f64>,
     pub last_fetched: Instant,
 }
@@ -148,6 +150,9 @@ pub struct App {
     pub show_task_list: bool,
     pub task_list_idx: usize,
     pub task_scroll: u16,
+
+    // Auto-task scheduler
+    pub scheduler: Scheduler,
 }
 
 impl App {
@@ -193,6 +198,7 @@ impl App {
             show_task_list: false,
             task_list_idx: 0,
             task_scroll: 0,
+            scheduler: Scheduler::new(),
         };
         app.fetch_usage();
         app.send_overview();
@@ -253,6 +259,19 @@ impl App {
             };
             if should_fetch {
                 self.fetch_usage();
+            }
+        }
+
+        // Auto-task scheduler
+        if let Some(usage) = &self.usage_status {
+            if self.scheduler.should_launch(usage, self.chat_waiting) {
+                let task = self.scheduler.next_task();
+                let name = task.name.to_string();
+                let prompt = task.prompt.to_string();
+                let cwd = Some(task.cwd);
+                self.chat_messages
+                    .push(("user".into(), format!("[Auto] {}", name)));
+                self.spawn_claude(prompt, true, true, cwd);
             }
         }
     }
@@ -382,6 +401,7 @@ impl App {
                     self.chat_scroll = 0;
                 }
             }
+            KeyCode::Char('a') => self.scheduler.toggle(),
             _ => {}
         }
     }
@@ -489,17 +509,18 @@ impl App {
     fn send_overview(&mut self) {
         self.chat_messages
             .push(("user".into(), "Generating project overview...".into()));
-        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false);
+        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false, None);
     }
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat_messages.push(("user".into(), msg.clone()));
-        self.spawn_claude(msg, true, true);
+        self.spawn_claude(msg, true, true, None);
     }
 
     /// Shared helper: spawn a background `claude` CLI call.
     /// `resume` — attach to existing session; `read_only` — disallow write tools.
-    fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool) {
+    /// `cwd` — optional working directory for the claude process.
+    fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool, cwd: Option<&str>) {
         self.chat_error = None;
         self.chat_waiting = true;
         self.chat_waiting_since = Some(Instant::now());
@@ -509,12 +530,16 @@ impl App {
         let gw_url = self.gateway_url.clone();
         let gw_headers = self.gateway_headers.clone();
         let system_prompt = format!("{}{}", BASE_SYSTEM_PROMPT, self.chat_tone.suffix());
+        let work_dir = cwd.map(|s| s.to_string());
 
         let (tx, rx) = mpsc::channel();
         self.response_rx = Some(rx);
 
         thread::spawn(move || {
             let mut cmd = Command::new("claude");
+            if let Some(dir) = &work_dir {
+                cmd.current_dir(dir);
+            }
             if gw_enabled {
                 if let Some(url) = &gw_url {
                     cmd.env("ANTHROPIC_BASE_URL", url);
@@ -875,6 +900,10 @@ fn fetch_oauth_usage() -> Option<UsageStatus> {
 
     let seven_day = val.get("seven_day")?;
     let seven_day_pct = seven_day.get("utilization")?.as_f64()?;
+    let seven_day_resets_at = seven_day
+        .get("resets_at")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<DateTime<Utc>>().ok());
 
     let seven_day_sonnet_pct = val
         .get("seven_day_sonnet")
@@ -885,6 +914,7 @@ fn fetch_oauth_usage() -> Option<UsageStatus> {
         five_hour_pct,
         five_hour_resets_at,
         seven_day_pct,
+        seven_day_resets_at,
         seven_day_sonnet_pct,
         last_fetched: Instant::now(),
     })

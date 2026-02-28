@@ -81,7 +81,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             InputMode::ChatInput => "Enter=send Alt+Enter=newline Ctrl+C=copy Esc=cancel | Shift+Tab=logs".to_string(),
             InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
             _ if app.show_task_list => "j/k=select Ctrl+d/u=scroll D=delete Esc=close".to_string(),
-            _ => "i=type x=task X=tasks j/k=scroll n=new t=tone g=gw q=quit | Shift+Tab=logs".to_string(),
+            _ => "i=type x=task X=tasks j/k=scroll n=new t=tone g=gw a=auto q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
             (_, InputMode::Search) => {
@@ -384,15 +384,26 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     };
     let task_len: usize = task_spans.iter().map(|s| s.content.len()).sum();
 
+    let auto_spans: Vec<Span> = {
+        let (label, color) = if app.scheduler.enabled {
+            (" Auto:ON", Color::Green)
+        } else {
+            (" Auto:OFF", Color::DarkGray)
+        };
+        vec![Span::styled(label, Style::default().fg(color))]
+    };
+    let auto_len: usize = auto_spans.iter().map(|s| s.content.len()).sum();
+
     let Some(usage) = &app.usage_status else {
         let left = " Loading usage...";
-        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + session_part.len());
+        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + auto_len + session_part.len());
         let mut spans = vec![
             Span::styled(left, Style::default().fg(Color::DarkGray)),
         ];
         spans.extend(gw_spans);
         spans.extend(tone_spans);
         spans.extend(task_spans);
+        spans.extend(auto_spans);
         spans.push(Span::raw(" ".repeat(pad)));
         spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
         return Paragraph::new(Line::from(spans));
@@ -434,13 +445,14 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         sonnet_part,
     );
 
-    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + session_part.len());
+    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + auto_len + session_part.len());
     let mut spans = vec![
         Span::styled(left, Style::default().fg(color)),
     ];
     spans.extend(gw_spans);
     spans.extend(tone_spans);
     spans.extend(task_spans);
+    spans.extend(auto_spans);
     spans.push(Span::raw(" ".repeat(pad)));
     spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
     Paragraph::new(Line::from(spans))

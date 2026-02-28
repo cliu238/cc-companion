@@ -1,5 +1,6 @@
 mod app;
 mod data;
+mod scheduler;
 mod ui;
 
 use std::io;
