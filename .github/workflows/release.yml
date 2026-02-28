@@ -4,9 +4,6 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: write
-
 jobs:
   build:
     strategy:
@@ -28,4 +25,7 @@ jobs:
       - run: cp target/${{ matrix.target }}/release/cc-companion ${{ matrix.artifact }}
       - uses: softprops/action-gh-release@v2
         with:
+          repository: cliu238/cc-companion-releases
+          tag_name: ${{ github.ref_name }}
+          token: ${{ secrets.RELEASE_PAT }}
           files: ${{ matrix.artifact }}
