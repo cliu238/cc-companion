@@ -36,9 +36,20 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      - uses: softprops/action-gh-release@v2
-        with:
-          repository: cliu238/cc-companion-releases
-          tag_name: ${{ github.ref_name }}
-          token: ${{ secrets.RELEASE_PAT }}
-          files: artifacts/*
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          # Create release (or skip if exists)
+          gh release create "$TAG" \
+            --repo cliu238/cc-companion-releases \
+            --title "$TAG" \
+            --notes "cc-companion $TAG" \
+            2>/dev/null || true
+          # Upload each artifact
+          for f in artifacts/*; do
+            gh release upload "$TAG" "$f" \
+              --repo cliu238/cc-companion-releases \
+              --clobber
+          done
