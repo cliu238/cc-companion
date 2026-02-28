@@ -114,18 +114,18 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         let is_new = highlight_last && i == msg_count - 1;
         let (label, color) = match role.as_str() {
             "user" => ("You:", Color::Green),
-            _ => ("Claude:", if is_new { Color::Yellow } else { Color::Blue }),
+            _ => ("Claude:", Color::Blue),
         };
-        let mut label_style = Style::default().fg(color).add_modifier(Modifier::BOLD);
-        if is_new {
-            label_style = label_style.add_modifier(Modifier::REVERSED);
-        }
+        let bg = if is_new { Some(Color::DarkGray) } else { None };
+        let label_style = Style::default().fg(color).add_modifier(Modifier::BOLD);
+        let label_style = if let Some(bg) = bg { label_style.bg(bg) } else { label_style };
         lines.push(Line::from(Span::styled(label, label_style)));
-        let text_color = if is_new { Color::Yellow } else { Color::White };
         for text_line in content.lines() {
+            let mut style = Style::default().fg(Color::White);
+            if let Some(bg) = bg { style = style.bg(bg); }
             lines.push(Line::from(Span::styled(
                 format!("  {}", text_line),
-                Style::default().fg(text_color),
+                style,
             )));
         }
         lines.push(Line::from(""));
