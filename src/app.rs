@@ -8,7 +8,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::data::{self, ConversationMessage, Project, SessionEntry};
 
-const OVERVIEW_PROMPT: &str = r#"You are a concise project advisor. Read the key project files (config, CLAUDE.md, main source, git log --oneline -10, git status), then respond in 2-3 sentences: what the project is, what's happening now, and one suggested next step. No bullet points, no headers, no details. Just a brief spoken-style summary."#;
+const BASE_SYSTEM_PROMPT: &str = include_str!("../system_prompt.md");
+
+const OVERVIEW_PROMPT: &str = "Read the project files (CLAUDE.md, main source) to understand this project. Tell me what you think the project is about and what its purpose is, then ask me to confirm or clarify.";
 
 #[derive(Clone, Copy)]
 pub enum ChatTone {
@@ -18,11 +20,11 @@ pub enum ChatTone {
 }
 
 impl ChatTone {
-    pub fn system_prompt(self) -> &'static str {
+    pub fn suffix(self) -> &'static str {
         match self {
-            Self::Advisor => "You are a cc-companion advisor. Provide short suggestions. You cannot edit or write code.",
-            Self::Eric => "You are a mean advisor. Provide short suggestions. You cannot edit or write code. Sometimes use personal attacks (only when it makes sense, not too often). If there is nothing to complain about, talk like a normal advisor.",
-            Self::EricChinese => "You are a mean advisor. Provide short suggestions. You cannot edit or write code. Sometimes use personal attacks (only when it makes sense, not too often). If there is nothing to complain about, talk like a normal advisor. Output in Chinese.",
+            Self::Advisor => "",
+            Self::Eric => "\n\nTone override: Be a mean advisor. Sometimes use personal attacks (only when it makes sense, not too often). If there is nothing to complain about, talk normally.",
+            Self::EricChinese => "\n\nTone override: Be a mean advisor. Sometimes use personal attacks (only when it makes sense, not too often). If there is nothing to complain about, talk normally. Output in Chinese.",
         }
     }
 
@@ -327,7 +329,7 @@ impl App {
         let gw_enabled = self.gateway_enabled;
         let gw_url = self.gateway_url.clone();
         let gw_headers = self.gateway_headers.clone();
-        let full_msg = format!("[Tone: {}]\n\n{}", self.chat_tone.system_prompt(), msg);
+        let system_prompt = format!("{}{}", BASE_SYSTEM_PROMPT, self.chat_tone.suffix());
 
         let (tx, rx) = mpsc::channel();
         self.response_rx = Some(rx);
@@ -345,7 +347,8 @@ impl App {
                 cmd.env_remove("ANTHROPIC_BASE_URL");
                 cmd.env_remove("ANTHROPIC_CUSTOM_HEADERS");
             }
-            cmd.arg("-p").arg(&full_msg);
+            cmd.arg("--system-prompt").arg(&system_prompt);
+            cmd.arg("-p").arg(&msg);
             cmd.arg("--output-format").arg("json");
             cmd.arg("--permission-mode").arg("dontAsk");
             if read_only {
