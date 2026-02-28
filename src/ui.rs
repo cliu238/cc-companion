@@ -162,11 +162,12 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         )));
     }
 
-    let max_scroll = (lines.len() as u16).saturating_sub(1);
+    let visible_height = chat_chunks[0].height as usize;
+    let messages = Paragraph::new(lines).wrap(Wrap { trim: false });
+    let total_rendered = messages.line_count(chat_chunks[0].width);
+    let max_scroll = total_rendered.saturating_sub(visible_height) as u16;
     app.chat_scroll = app.chat_scroll.min(max_scroll);
-    let messages = Paragraph::new(lines)
-        .wrap(Wrap { trim: false })
-        .scroll((app.chat_scroll, 0));
+    let messages = messages.scroll((app.chat_scroll, 0));
     f.render_widget(messages, chat_chunks[0]);
 
     // Status bar: token usage + session ID
