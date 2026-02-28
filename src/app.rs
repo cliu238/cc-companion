@@ -391,6 +391,17 @@ impl App {
             KeyCode::Esc => {
                 self.input_mode = InputMode::Normal;
             }
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if !self.chat_input.is_empty() {
+                    let ok = copy_to_clipboard(&self.chat_input);
+                    self.clipboard_msg = Some(
+                        if ok { "Copied!".into() } else { "Copy failed".into() },
+                    );
+                }
+            }
+            KeyCode::Enter if key.modifiers.contains(KeyModifiers::ALT) => {
+                self.chat_input.push('\n');
+            }
             KeyCode::Enter => {
                 let msg = self.chat_input.trim().to_string();
                 if !msg.is_empty() {
@@ -415,6 +426,14 @@ impl App {
                 self.show_task_input = false;
                 self.task_input.clear();
                 self.input_mode = InputMode::Normal;
+            }
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if !self.task_input.is_empty() {
+                    let ok = copy_to_clipboard(&self.task_input);
+                    self.clipboard_msg = Some(
+                        if ok { "Copied!".into() } else { "Copy failed".into() },
+                    );
+                }
             }
             KeyCode::Enter => {
                 let cmd = self.task_input.trim().to_string();
@@ -644,17 +663,7 @@ impl App {
             KeyCode::Char('y') => {
                 if let Some(session) = self.selected_session() {
                     let id = session.session_id.clone();
-                    let ok = Command::new("pbcopy")
-                        .stdin(std::process::Stdio::piped())
-                        .spawn()
-                        .and_then(|mut child| {
-                            use std::io::Write;
-                            if let Some(stdin) = child.stdin.as_mut() {
-                                stdin.write_all(id.as_bytes())?;
-                            }
-                            child.wait()
-                        })
-                        .is_ok();
+                    let ok = copy_to_clipboard(&id);
                     self.clipboard_msg = Some(if ok { "Copied!".into() } else { "Copy failed".into() });
                 }
             }
@@ -793,6 +802,32 @@ impl App {
             .get(self.session_idx)
             .map(|&i| &self.sessions[i])
     }
+
+    pub fn handle_paste(&mut self, text: String) {
+        match self.input_mode {
+            InputMode::ChatInput => self.chat_input.push_str(&text),
+            InputMode::TaskInput => self.task_input.push_str(&text),
+            InputMode::Search => {
+                self.search_query.push_str(&text);
+                self.refilter();
+            }
+            InputMode::Normal => {}
+        }
+    }
+}
+
+fn copy_to_clipboard(text: &str) -> bool {
+    Command::new("pbcopy")
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            if let Some(stdin) = child.stdin.as_mut() {
+                stdin.write_all(text.as_bytes())?;
+            }
+            child.wait()
+        })
+        .is_ok()
 }
 
 /// Fetch usage from the Anthropic OAuth API.

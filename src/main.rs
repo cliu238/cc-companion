@@ -6,7 +6,7 @@ use std::io;
 use std::time::Duration;
 
 use crossterm::{
-    event::{self, Event},
+    event::{self, EnableBracketedPaste, DisableBracketedPaste, Event},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
@@ -15,6 +15,7 @@ use ratatui::prelude::CrosstermBackend;
 fn main() -> io::Result<()> {
     enable_raw_mode()?;
     io::stdout().execute(EnterAlternateScreen)?;
+    io::stdout().execute(EnableBracketedPaste)?;
 
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = ratatui::Terminal::new(backend)?;
@@ -24,8 +25,10 @@ fn main() -> io::Result<()> {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
         if event::poll(Duration::from_millis(250))? {
-            if let Event::Key(key) = event::read()? {
-                app.handle_key(key);
+            match event::read()? {
+                Event::Key(key) => app.handle_key(key),
+                Event::Paste(text) => app.handle_paste(text),
+                _ => {}
             }
         }
 
@@ -36,6 +39,7 @@ fn main() -> io::Result<()> {
         }
     }
 
+    io::stdout().execute(DisableBracketedPaste)?;
     disable_raw_mode()?;
     io::stdout().execute(LeaveAlternateScreen)?;
     Ok(())

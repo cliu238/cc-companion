@@ -6,6 +6,8 @@ use ratatui::{
     Frame,
 };
 
+use unicode_width::UnicodeWidthStr;
+
 use crate::app::{App, InputMode, Mode, TaskStatus, View};
 
 pub fn draw(f: &mut Frame, app: &mut App) {
@@ -76,7 +78,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     // Help bar
     let help = match app.mode {
         Mode::Chat => match app.input_mode {
-            InputMode::ChatInput => "Enter=send Esc=cancel | Shift+Tab=logs".to_string(),
+            InputMode::ChatInput => "Enter=send Alt+Enter=newline Ctrl+C=copy Esc=cancel | Shift+Tab=logs".to_string(),
             InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
             _ if app.show_task_list => "j/k=select Ctrl+d/u=scroll D=delete Esc=close".to_string(),
             _ => "i=type x=task X=tasks j/k=scroll n=new t=tone g=gw q=quit | Shift+Tab=logs".to_string(),
@@ -101,7 +103,8 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 }
 
 fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
-    let input_height = 3u16;
+    let line_count = app.chat_input.matches('\n').count() + 1;
+    let input_height = (line_count as u16 + 2).min(8);
     let chat_chunks = Layout::vertical([
         Constraint::Min(0),
         Constraint::Length(1),
@@ -193,8 +196,10 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
 
     // Show cursor in input box when active
     if is_input_active {
-        let cursor_x = chat_chunks[2].x + app.chat_input.len() as u16 + 1;
-        let cursor_y = chat_chunks[2].y + 1;
+        let last_line = app.chat_input.rsplit('\n').next().unwrap_or(&app.chat_input);
+        let cursor_x = chat_chunks[2].x + UnicodeWidthStr::width(last_line) as u16 + 1;
+        let lines_above = app.chat_input.matches('\n').count() as u16;
+        let cursor_y = chat_chunks[2].y + 1 + lines_above;
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
@@ -456,7 +461,7 @@ fn draw_task_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) 
     f.render_widget(ratatui::widgets::Clear, popup_area);
     f.render_widget(input, popup_area);
 
-    let cursor_x = popup_area.x + app.task_input.len() as u16 + 1;
+    let cursor_x = popup_area.x + UnicodeWidthStr::width(app.task_input.as_str()) as u16 + 1;
     let cursor_y = popup_area.y + 1;
     f.set_cursor_position((cursor_x, cursor_y));
 }
