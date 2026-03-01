@@ -50,7 +50,7 @@ export const Video: React.FC = () => {
     ),
     "demo-welcome": (from, dur) => (
       <Sequence key="demo-welcome" from={from} durationInFrames={dur} name="Demo: Welcome">
-        <DemoScene image="welcome.png" label="Project Selector" />
+        <DemoScene image="fresh/01-project-selector.png" label="Project Selector" />
       </Sequence>
     ),
     "demo-chat": (from, dur) => (
@@ -60,7 +60,12 @@ export const Video: React.FC = () => {
     ),
     "demo-logs": (from, dur) => (
       <Sequence key="demo-logs" from={from} durationInFrames={dur} name="Demo: Logs">
-        <DemoScene image="log-mode.png" label="Session Browser" />
+        <DemoScene
+          image="fresh/04-session-list.png"
+          label="Session Browser"
+          image2="fresh/05-conversation.png"
+          label2="Conversation View"
+        />
       </Sequence>
     ),
     workflow: (from, dur) => (

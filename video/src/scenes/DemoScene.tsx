@@ -10,67 +10,123 @@ import {
 } from "remotion";
 
 interface DemoSceneProps {
-  image: string; // filename in public/images/
+  image: string;
   label: string;
+  image2?: string;  // optional second image, cross-fades at midpoint
+  label2?: string;  // optional label for second image
 }
 
-export const DemoScene: React.FC<DemoSceneProps> = ({ image, label }) => {
+export const DemoScene: React.FC<DemoSceneProps> = ({
+  image,
+  label,
+  image2,
+  label2,
+}) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
 
-  // Fade in
-  const opacity = interpolate(frame, [0, fps * 0.5], [0, 1], {
-    extrapolateRight: "clamp",
-  });
+  const hasTwoImages = !!image2;
+  const midpoint = Math.round(durationInFrames * 0.55);
 
-  // Slow Ken Burns zoom effect
-  const scale = interpolate(frame, [0, durationInFrames], [1.0, 1.08], {
-    extrapolateRight: "clamp",
-    easing: Easing.inOut(Easing.ease),
-  });
+  // --- Image 1 ---
+  const img1Opacity = hasTwoImages
+    ? interpolate(frame, [0, fps * 0.5, midpoint - fps * 0.5, midpoint], [0, 1, 1, 0], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : interpolate(frame, [0, fps * 0.5], [0, 1], { extrapolateRight: "clamp" });
 
-  // Slight pan
-  const translateX = interpolate(frame, [0, durationInFrames], [0, -15], {
-    extrapolateRight: "clamp",
-  });
+  const img1Scale = interpolate(
+    frame,
+    [0, hasTwoImages ? midpoint : durationInFrames],
+    [1.0, 1.06],
+    { extrapolateRight: "clamp", easing: Easing.inOut(Easing.ease) }
+  );
 
-  // Label slide in
+  const img1TranslateX = interpolate(
+    frame,
+    [0, hasTwoImages ? midpoint : durationInFrames],
+    [0, -12],
+    { extrapolateRight: "clamp" }
+  );
+
+  // --- Image 2 (only if provided) ---
+  const img2Opacity = hasTwoImages
+    ? interpolate(frame, [midpoint - fps * 0.3, midpoint + fps * 0.3], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : 0;
+
+  const img2Scale = hasTwoImages
+    ? interpolate(frame, [midpoint, durationInFrames], [1.0, 1.06], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+        easing: Easing.inOut(Easing.ease),
+      })
+    : 1;
+
+  const img2TranslateX = hasTwoImages
+    ? interpolate(frame, [midpoint, durationInFrames], [0, 12], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : 0;
+
+  // --- Label ---
+  const currentLabel = hasTwoImages && frame >= midpoint ? (label2 || label) : label;
   const labelX = interpolate(frame, [fps * 0.3, fps * 0.8], [-200, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.out(Easing.cubic),
   });
-
   const labelOpacity = interpolate(frame, [fps * 0.3, fps * 0.8], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+  // Re-animate label on image switch
+  const label2Opacity = hasTwoImages
+    ? interpolate(frame, [midpoint, midpoint + fps * 0.4], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : 1;
+
+  const imgStyle: React.CSSProperties = {
+    maxWidth: "100%",
+    maxHeight: "100%",
+    borderRadius: 12,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+  };
+
+  const containerStyle = (
+    opacity: number,
+    scale: number,
+    tx: number
+  ): React.CSSProperties => ({
+    position: "absolute",
+    inset: 0,
+    opacity,
+    transform: `scale(${scale}) translateX(${tx}px)`,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+  });
 
   return (
     <AbsoluteFill style={{ background: "#0f0f23" }}>
-      {/* Screenshot with Ken Burns */}
-      <div
-        style={{
-          opacity,
-          transform: `scale(${scale}) translateX(${translateX}px)`,
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 40,
-        }}
-      >
-        <Img
-          src={staticFile(`images/${image}`)}
-          style={{
-            maxWidth: "100%",
-            maxHeight: "100%",
-            borderRadius: 12,
-            boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-          }}
-        />
+      {/* Image 1 */}
+      <div style={containerStyle(img1Opacity, img1Scale, img1TranslateX)}>
+        <Img src={staticFile(`images/${image}`)} style={imgStyle} />
       </div>
+
+      {/* Image 2 */}
+      {hasTwoImages && (
+        <div style={containerStyle(img2Opacity, img2Scale, img2TranslateX)}>
+          <Img src={staticFile(`images/${image2}`)} style={imgStyle} />
+        </div>
+      )}
 
       {/* Feature label */}
       <div
@@ -78,8 +134,12 @@ export const DemoScene: React.FC<DemoSceneProps> = ({ image, label }) => {
           position: "absolute",
           top: 40,
           left: 60,
-          opacity: labelOpacity,
-          transform: `translateX(${labelX}px)`,
+          opacity: hasTwoImages && frame >= midpoint - fps * 0.3
+            ? label2Opacity
+            : labelOpacity,
+          transform: hasTwoImages && frame >= midpoint - fps * 0.3
+            ? undefined
+            : `translateX(${labelX}px)`,
         }}
       >
         <div
@@ -94,7 +154,7 @@ export const DemoScene: React.FC<DemoSceneProps> = ({ image, label }) => {
             borderRadius: 8,
           }}
         >
-          {label}
+          {currentLabel}
         </div>
       </div>
     </AbsoluteFill>
