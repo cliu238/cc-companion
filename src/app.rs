@@ -448,7 +448,7 @@ impl App {
             }
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 if !self.chat_input.is_empty() {
-                    let ok = copy_to_clipboard(&self.chat_input);
+                    let ok = crate::platform::copy_to_clipboard(&self.chat_input);
                     self.clipboard_msg = Some(
                         if ok { "Copied!".into() } else { "Copy failed".into() },
                     );
@@ -484,7 +484,7 @@ impl App {
             }
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 if !self.task_input.is_empty() {
-                    let ok = copy_to_clipboard(&self.task_input);
+                    let ok = crate::platform::copy_to_clipboard(&self.task_input);
                     self.clipboard_msg = Some(
                         if ok { "Copied!".into() } else { "Copy failed".into() },
                     );
@@ -518,8 +518,9 @@ impl App {
             rx,
         });
         thread::spawn(move || {
-            let result = Command::new("sh")
-                .arg("-c")
+            let (shell, flag) = crate::platform::shell_cmd();
+            let result = Command::new(shell)
+                .arg(flag)
                 .arg(&command)
                 .output();
             let _ = tx.send(match result {
@@ -724,7 +725,7 @@ impl App {
             KeyCode::Char('y') => {
                 if let Some(session) = self.selected_session() {
                     let id = session.session_id.clone();
-                    let ok = copy_to_clipboard(&id);
+                    let ok = crate::platform::copy_to_clipboard(&id);
                     self.clipboard_msg = Some(if ok { "Copied!".into() } else { "Copy failed".into() });
                 }
             }
@@ -960,36 +961,9 @@ impl App {
     }
 }
 
-fn copy_to_clipboard(text: &str) -> bool {
-    Command::new("pbcopy")
-        .stdin(std::process::Stdio::piped())
-        .spawn()
-        .and_then(|mut child| {
-            use std::io::Write;
-            if let Some(stdin) = child.stdin.as_mut() {
-                stdin.write_all(text.as_bytes())?;
-            }
-            child.wait()
-        })
-        .is_ok()
-}
-
 /// Fetch usage from the Anthropic OAuth API.
 fn fetch_oauth_usage() -> Option<UsageStatus> {
-    // Get OAuth token from macOS keychain
-    let cred_output = Command::new("security")
-        .args(["find-generic-password", "-s", "Claude Code-credentials", "-w"])
-        .output()
-        .ok()?;
-    if !cred_output.status.success() {
-        return None;
-    }
-    let cred_json = String::from_utf8_lossy(&cred_output.stdout);
-    let cred: serde_json::Value = serde_json::from_str(cred_json.trim()).ok()?;
-    let token = cred
-        .get("claudeAiOauth")
-        .and_then(|o| o.get("accessToken"))
-        .and_then(|t| t.as_str())?;
+    let token = crate::platform::get_oauth_token()?;
 
     // Call the usage API (anthropic-beta header is required)
     let api_output = Command::new("curl")

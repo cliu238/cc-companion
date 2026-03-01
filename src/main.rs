@@ -1,5 +1,6 @@
 mod app;
 mod data;
+mod platform;
 mod scheduler;
 mod ui;
 
