@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::process::Command;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
@@ -74,6 +75,7 @@ pub enum InputMode {
     Search,
     ChatInput,
     TaskInput,
+    RgInput,
 }
 
 pub enum TaskStatus {
@@ -153,6 +155,12 @@ pub struct App {
 
     // Auto-task scheduler
     pub scheduler: Scheduler,
+
+    // Ripgrep search in session list
+    pub rg_query: String,
+    pub rg_matches: HashMap<String, usize>,
+    pub rg_active: bool,
+    rg_rx: Option<Receiver<Result<HashMap<String, usize>, String>>>,
 }
 
 impl App {
@@ -199,6 +207,10 @@ impl App {
             task_list_idx: 0,
             task_scroll: 0,
             scheduler: Scheduler::new(),
+            rg_query: String::new(),
+            rg_matches: HashMap::new(),
+            rg_active: false,
+            rg_rx: None,
         };
         app.fetch_usage();
         app.send_overview();
@@ -251,6 +263,28 @@ impl App {
             }
         }
 
+        // Check rg search results
+        if let Some(rx) = &self.rg_rx {
+            if let Ok(result) = rx.try_recv() {
+                self.rg_rx = None;
+                if let Ok(matches) = result {
+                    self.rg_matches = matches;
+                    self.rg_active = true;
+                    // Clear any text search filter
+                    self.search_query.clear();
+                    // Filter session list to only matching sessions
+                    self.filtered_session_indices = self
+                        .sessions
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, s)| self.rg_matches.contains_key(&s.session_id))
+                        .map(|(i, _)| i)
+                        .collect();
+                    self.session_idx = 0;
+                }
+            }
+        }
+
         // Periodic usage refetch (every 60s)
         if !self.usage_fetching {
             let should_fetch = match &self.usage_status {
@@ -292,6 +326,7 @@ impl App {
             InputMode::Search => self.handle_search_key(key),
             InputMode::ChatInput => self.handle_chat_input_key(key),
             InputMode::TaskInput => self.handle_task_input_key(key),
+            InputMode::RgInput => self.handle_rg_input_key(key),
             InputMode::Normal => {
                 // Shift+Tab toggles mode at top-level views
                 if key.code == KeyCode::BackTab {
@@ -661,6 +696,7 @@ impl App {
             KeyCode::Char('q') | KeyCode::Esc | KeyCode::Backspace => {
                 self.view = View::ProjectList;
                 self.search_query.clear();
+                self.clear_rg_filter();
                 self.refilter();
             }
             KeyCode::Char('j') | KeyCode::Down => {
@@ -694,9 +730,15 @@ impl App {
             }
             KeyCode::Enter => self.enter_conversation(),
             KeyCode::Char('/') => {
+                self.clear_rg_filter();
                 self.input_mode = InputMode::Search;
                 self.search_query.clear();
             }
+            KeyCode::Char('r') => {
+                self.input_mode = InputMode::RgInput;
+                self.rg_query.clear();
+            }
+            KeyCode::Char('R') => self.clear_rg_filter(),
             _ => {}
         }
     }
@@ -754,6 +796,9 @@ impl App {
             self.filtered_session_indices = (0..self.sessions.len()).collect();
             self.session_idx = 0;
             self.search_query.clear();
+            self.rg_active = false;
+            self.rg_matches.clear();
+            self.rg_query.clear();
             self.view = View::SessionList;
         }
     }
@@ -776,6 +821,79 @@ impl App {
                 self.view = View::ClaudeMdViewer;
             }
         }
+    }
+
+    fn handle_rg_input_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.input_mode = InputMode::Normal;
+                self.rg_query.clear();
+            }
+            KeyCode::Enter => {
+                let query = self.rg_query.trim().to_string();
+                if !query.is_empty() {
+                    self.run_rg_search(&query);
+                }
+                self.input_mode = InputMode::Normal;
+            }
+            KeyCode::Backspace => {
+                self.rg_query.pop();
+            }
+            KeyCode::Char(c) => {
+                self.rg_query.push(c);
+            }
+            _ => {}
+        }
+    }
+
+    fn run_rg_search(&mut self, query: &str) {
+        let Some(project) = self.selected_project() else { return };
+        let claude_dir = project.claude_dir.clone();
+        let query = query.to_string();
+        let (tx, rx) = mpsc::channel();
+        self.rg_rx = Some(rx);
+
+        thread::spawn(move || {
+            let result = Command::new("rg")
+                .arg("--count-matches")
+                .arg("--glob")
+                .arg("*.jsonl")
+                .arg(&query)
+                .arg(&claude_dir)
+                .output();
+
+            let _ = tx.send(match result {
+                Ok(output) => {
+                    let mut map = HashMap::new();
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    for line in stdout.lines() {
+                        // format: /path/to/session_id.jsonl:count
+                        if let Some((path, count)) = line.rsplit_once(':') {
+                            if let Ok(n) = count.parse::<usize>() {
+                                // Extract session_id from filename
+                                if let Some(fname) = std::path::Path::new(path)
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                {
+                                    map.insert(fname.to_string(), n);
+                                }
+                            }
+                        }
+                    }
+                    Ok(map)
+                }
+                Err(e) => Err(format!("rg failed: {}", e)),
+            });
+        });
+    }
+
+    fn clear_rg_filter(&mut self) {
+        self.rg_active = false;
+        self.rg_matches.clear();
+        self.rg_query.clear();
+        self.rg_rx = None;
+        self.filtered_session_indices = (0..self.sessions.len()).collect();
+        self.session_idx = 0;
     }
 
     fn refilter(&mut self) {
@@ -836,6 +954,7 @@ impl App {
                 self.search_query.push_str(&text);
                 self.refilter();
             }
+            InputMode::RgInput => self.rg_query.push_str(&text),
             InputMode::Normal => {}
         }
     }

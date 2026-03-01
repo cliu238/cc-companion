@@ -87,10 +87,13 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             (_, InputMode::Search) => {
                 format!("Search: {}_ | Enter=accept Esc=cancel", app.search_query)
             }
+            (_, InputMode::RgInput) => {
+                format!("rg: {}_ | Enter=search Esc=cancel", app.rg_query)
+            }
             (View::ProjectList, _) => {
                 "j/k=move Enter=open /=search c=CLAUDE.md q=quit | Shift+Tab=chat".to_string()
             }
-            (View::SessionList, _) => "j/k=move Enter=open /=search y=copy id Esc=back".to_string(),
+            (View::SessionList, _) => "j/k=move Enter=open /=search r=rg R=clear y=copy id Esc=back".to_string(),
             (View::Conversation, _) => {
                 "j/k=scroll Ctrl+d/u=page g/G=top/bottom Esc=back".to_string()
             }
@@ -263,7 +266,7 @@ fn draw_session_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             };
             let short_id: String = s.session_id.chars().take(8).collect();
             let prompt = truncate(&s.first_prompt, 80);
-            let line = Line::from(vec![
+            let mut spans = vec![
                 Span::styled(date, Style::default().fg(Color::Yellow)),
                 Span::styled(
                     format!(" {:>3}msg", s.message_count),
@@ -274,16 +277,32 @@ fn draw_session_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
                     Style::default().fg(Color::DarkGray),
                 ),
                 Span::styled(branch, Style::default().fg(Color::Cyan)),
-                Span::raw("  "),
-                Span::styled(prompt, Style::default().fg(Color::White)),
-            ]);
-            ListItem::new(line)
+            ];
+            if let Some(&count) = app.rg_matches.get(&s.session_id) {
+                spans.push(Span::styled(
+                    format!(" ({} hits)", count),
+                    Style::default().fg(Color::Magenta),
+                ));
+            }
+            spans.push(Span::raw("  "));
+            spans.push(Span::styled(prompt, Style::default().fg(Color::White)));
+            ListItem::new(Line::from(spans))
         })
         .collect();
 
-    let title = match &app.clipboard_msg {
-        Some(msg) => format!(" {} sessions  [{}] ", app.filtered_session_indices.len(), msg),
-        None => format!(" {} sessions ", app.filtered_session_indices.len()),
+    let title = if app.rg_active {
+        let n = app.rg_matches.len();
+        format!(
+            " {} matches for '{}' ({} sessions)  R=clear ",
+            app.filtered_session_indices.len(),
+            app.rg_query,
+            n
+        )
+    } else {
+        match &app.clipboard_msg {
+            Some(msg) => format!(" {} sessions  [{}] ", app.filtered_session_indices.len(), msg),
+            None => format!(" {} sessions ", app.filtered_session_indices.len()),
+        }
     };
     let list = List::new(items)
         .block(
