@@ -491,16 +491,32 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         None => "??".to_string(),
     };
 
+    let seven_day_countdown = match usage.seven_day_resets_at {
+        Some(end) => {
+            let now = chrono::Utc::now();
+            let remaining = end.signed_duration_since(now);
+            if remaining.num_seconds() <= 0 {
+                "expired".to_string()
+            } else {
+                let d = remaining.num_days();
+                let h = remaining.num_hours() % 24;
+                format!(" {}d{:02}h", d, h)
+            }
+        }
+        None => String::new(),
+    };
+
     let sonnet_part = match usage.seven_day_sonnet_pct {
         Some(pct) => format!(" | Sonnet: {}%", pct as u32),
         None => String::new(),
     };
 
     let left = format!(
-        " \u{23f1} {} | {}% used | 7d: {}%{}",
+        " \u{23f1} {} | {}% used | 7d: {}%{}{}",
         countdown,
         usage.five_hour_pct as u32,
         usage.seven_day_pct as u32,
+        seven_day_countdown,
         sonnet_part,
     );
 
