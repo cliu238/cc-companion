@@ -9,7 +9,9 @@ import { createTikTokStyleCaptions } from "@remotion/captions";
 import { IntroScene } from "./scenes/IntroScene";
 import { VisionScene } from "./scenes/VisionScene";
 import { DemoScene } from "./scenes/DemoScene";
-import { WorkflowScene } from "./scenes/WorkflowScene";
+import { StatusBarScene } from "./scenes/StatusBarScene";
+import { FeaturesScene } from "./scenes/FeaturesScene";
+import { RoadmapScene } from "./scenes/RoadmapScene";
 import { Subtitles } from "./components/Subtitles";
 import { scenes, audioDurationMs, FPS } from "./data/script";
 import captionsData from "./data/captions.json";
@@ -68,9 +70,24 @@ export const Video: React.FC = () => {
         />
       </Sequence>
     ),
-    workflow: (from, dur) => (
-      <Sequence key="workflow" from={from} durationInFrames={dur} name="Workflow">
-        <WorkflowScene />
+    "status-bar": (from, dur) => (
+      <Sequence key="status-bar" from={from} durationInFrames={dur} name="Status Bar">
+        <StatusBarScene />
+      </Sequence>
+    ),
+    features: (from, dur) => (
+      <Sequence key="features" from={from} durationInFrames={dur} name="More Features">
+        <FeaturesScene />
+      </Sequence>
+    ),
+    "in-development": (from, dur) => (
+      <Sequence key="in-development" from={from} durationInFrames={dur} name="In Development">
+        <RoadmapScene variant="in-development" />
+      </Sequence>
+    ),
+    roadmap: (from, dur) => (
+      <Sequence key="roadmap" from={from} durationInFrames={dur} name="Roadmap">
+        <RoadmapScene variant="roadmap" />
       </Sequence>
     ),
   };
