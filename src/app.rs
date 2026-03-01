@@ -313,7 +313,7 @@ impl App {
                 let cwd = Some(task.cwd);
                 self.chat_messages
                     .push(("user".into(), format!("[Auto] {}", name)));
-                self.spawn_claude(prompt, true, true, cwd);
+                self.spawn_claude(prompt, true, true, cwd.as_deref(), None);
             }
         }
     }
@@ -645,19 +645,19 @@ impl App {
         self.chat_messages
             .push(("user".into(), "Generating project overview...".into()));
         let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref());
+        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref(), Some("sonnet"));
     }
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat_messages.push(("user".into(), msg.clone()));
         let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(msg, true, true, cwd.as_deref());
+        self.spawn_claude(msg, true, true, cwd.as_deref(), None);
     }
 
     /// Shared helper: spawn a background `claude` CLI call.
     /// `resume` — attach to existing session; `read_only` — disallow write tools.
     /// `cwd` — optional working directory for the claude process.
-    fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool, cwd: Option<&str>) {
+    fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool, cwd: Option<&str>, model: Option<&str>) {
         self.chat_error = None;
         self.chat_waiting = true;
         self.chat_waiting_since = Some(Instant::now());
@@ -668,6 +668,7 @@ impl App {
         let gw_headers = self.gateway_headers.clone();
         let system_prompt = format!("{}{}", BASE_SYSTEM_PROMPT, self.chat_tone.suffix());
         let work_dir = cwd.map(|s| s.to_string());
+        let model_flag = model.map(|s| s.to_string());
 
         let (tx, rx) = mpsc::channel();
         self.response_rx = Some(rx);
@@ -690,6 +691,9 @@ impl App {
             } else {
                 cmd.env_remove("ANTHROPIC_BASE_URL");
                 cmd.env_remove("ANTHROPIC_CUSTOM_HEADERS");
+            }
+            if let Some(m) = &model_flag {
+                cmd.arg("--model").arg(m);
             }
             cmd.arg("--system-prompt").arg(&system_prompt);
             cmd.arg("-p").arg(&msg);
