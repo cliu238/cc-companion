@@ -3,3 +3,4 @@
 __pycache__/
 video/node_modules/
 .env
+.DS_Store
