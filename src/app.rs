@@ -507,6 +507,7 @@ impl App {
                 self.chat_session_id = None;
                 self.chat_error = None;
                 self.chat_scroll = 0;
+                self.chat_messages.push(("user".into(), format!("Project: {}", path)));
                 self.send_overview();
                 self.search_query.clear();
                 self.refilter();
@@ -643,13 +644,13 @@ impl App {
     fn send_overview(&mut self) {
         self.chat_messages
             .push(("user".into(), "Generating project overview...".into()));
-        let cwd = self.cwd.to_str().map(|s| s.to_string());
+        let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
         self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref());
     }
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat_messages.push(("user".into(), msg.clone()));
-        let cwd = self.cwd.to_str().map(|s| s.to_string());
+        let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
         self.spawn_claude(msg, true, true, cwd.as_deref());
     }
 
@@ -676,6 +677,7 @@ impl App {
             if let Some(dir) = &work_dir {
                 if !dir.is_empty() {
                     cmd.current_dir(dir);
+                    cmd.arg("--add-dir").arg(dir);
                 }
             }
             if gw_enabled {
