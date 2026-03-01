@@ -1,0 +1,4131 @@
+{
+  "captions": [
+    {
+      "text": "Meet",
+      "startMs": 0,
+      "endMs": 520,
+      "timestampMs": 260,
+      "confidence": null
+    },
+    {
+      "text": " CC",
+      "startMs": 520,
+      "endMs": 1220,
+      "timestampMs": 870,
+      "confidence": null
+    },
+    {
+      "text": " Companion",
+      "startMs": 1220,
+      "endMs": 1740,
+      "timestampMs": 1480,
+      "confidence": null
+    },
+    {
+      "text": " a",
+      "startMs": 1980,
+      "endMs": 2460,
+      "timestampMs": 2220,
+      "confidence": null
+    },
+    {
+      "text": " research",
+      "startMs": 2460,
+      "endMs": 2900,
+      "timestampMs": 2680,
+      "confidence": null
+    },
+    {
+      "text": " platform",
+      "startMs": 2900,
+      "endMs": 3380,
+      "timestampMs": 3140,
+      "confidence": null
+    },
+    {
+      "text": " for",
+      "startMs": 3380,
+      "endMs": 3760,
+      "timestampMs": 3570,
+      "confidence": null
+    },
+    {
+      "text": " exploring",
+      "startMs": 3760,
+      "endMs": 4060,
+      "timestampMs": 3910,
+      "confidence": null
+    },
+    {
+      "text": " new",
+      "startMs": 4060,
+      "endMs": 4640,
+      "timestampMs": 4350,
+      "confidence": null
+    },
+    {
+      "text": " human",
+      "startMs": 4640,
+      "endMs": 5160,
+      "timestampMs": 4900,
+      "confidence": null
+    },
+    {
+      "text": " AI",
+      "startMs": 5160,
+      "endMs": 5520,
+      "timestampMs": 5340,
+      "confidence": null
+    },
+    {
+      "text": " interaction",
+      "startMs": 5520,
+      "endMs": 6200,
+      "timestampMs": 5860,
+      "confidence": null
+    },
+    {
+      "text": " paradigms",
+      "startMs": 6200,
+      "endMs": 6840,
+      "timestampMs": 6520,
+      "confidence": null
+    },
+    {
+      "text": " built",
+      "startMs": 7580,
+      "endMs": 7620,
+      "timestampMs": 7600,
+      "confidence": null
+    },
+    {
+      "text": " around",
+      "startMs": 7620,
+      "endMs": 8060,
+      "timestampMs": 7840,
+      "confidence": null
+    },
+    {
+      "text": " cloud",
+      "startMs": 8060,
+      "endMs": 8540,
+      "timestampMs": 8300,
+      "confidence": null
+    },
+    {
+      "text": " code",
+      "startMs": 8540,
+      "endMs": 9200,
+      "timestampMs": 8870,
+      "confidence": null
+    },
+    {
+      "text": " Today's",
+      "startMs": 9880,
+      "endMs": 10400,
+      "timestampMs": 10140,
+      "confidence": null
+    },
+    {
+      "text": " AI",
+      "startMs": 10400,
+      "endMs": 10780,
+      "timestampMs": 10590,
+      "confidence": null
+    },
+    {
+      "text": " assisted",
+      "startMs": 10780,
+      "endMs": 11180,
+      "timestampMs": 10980,
+      "confidence": null
+    },
+    {
+      "text": " development",
+      "startMs": 11180,
+      "endMs": 11640,
+      "timestampMs": 11410,
+      "confidence": null
+    },
+    {
+      "text": " is",
+      "startMs": 11640,
+      "endMs": 12020,
+      "timestampMs": 11830,
+      "confidence": null
+    },
+    {
+      "text": " reactive",
+      "startMs": 12020,
+      "endMs": 12500,
+      "timestampMs": 12260,
+      "confidence": null
+    },
+    {
+      "text": " The",
+      "startMs": 13360,
+      "endMs": 13460,
+      "timestampMs": 13410,
+      "confidence": null
+    },
+    {
+      "text": " human",
+      "startMs": 13460,
+      "endMs": 13760,
+      "timestampMs": 13610,
+      "confidence": null
+    },
+    {
+      "text": " asks",
+      "startMs": 13760,
+      "endMs": 14200,
+      "timestampMs": 13980,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 14620,
+      "endMs": 14880,
+      "timestampMs": 14750,
+      "confidence": null
+    },
+    {
+      "text": " AI",
+      "startMs": 14880,
+      "endMs": 15120,
+      "timestampMs": 15000,
+      "confidence": null
+    },
+    {
+      "text": " answers",
+      "startMs": 15120,
+      "endMs": 15640,
+      "timestampMs": 15380,
+      "confidence": null
+    },
+    {
+      "text": " CC",
+      "startMs": 16600,
+      "endMs": 16820,
+      "timestampMs": 16710,
+      "confidence": null
+    },
+    {
+      "text": " Companion",
+      "startMs": 16820,
+      "endMs": 17340,
+      "timestampMs": 17080,
+      "confidence": null
+    },
+    {
+      "text": " explores",
+      "startMs": 17340,
+      "endMs": 17820,
+      "timestampMs": 17580,
+      "confidence": null
+    },
+    {
+      "text": " a",
+      "startMs": 17820,
+      "endMs": 18080,
+      "timestampMs": 17950,
+      "confidence": null
+    },
+    {
+      "text": " different",
+      "startMs": 18080,
+      "endMs": 18360,
+      "timestampMs": 18220,
+      "confidence": null
+    },
+    {
+      "text": " approach",
+      "startMs": 18360,
+      "endMs": 18720,
+      "timestampMs": 18540,
+      "confidence": null
+    },
+    {
+      "text": " A",
+      "startMs": 19300,
+      "endMs": 19440,
+      "timestampMs": 19370,
+      "confidence": null
+    },
+    {
+      "text": " proactive",
+      "startMs": 19440,
+      "endMs": 19940,
+      "timestampMs": 19690,
+      "confidence": null
+    },
+    {
+      "text": " AI",
+      "startMs": 19940,
+      "endMs": 20380,
+      "timestampMs": 20160,
+      "confidence": null
+    },
+    {
+      "text": " companion",
+      "startMs": 20380,
+      "endMs": 20800,
+      "timestampMs": 20590,
+      "confidence": null
+    },
+    {
+      "text": " that",
+      "startMs": 20800,
+      "endMs": 21080,
+      "timestampMs": 20940,
+      "confidence": null
+    },
+    {
+      "text": " has",
+      "startMs": 21080,
+      "endMs": 21360,
+      "timestampMs": 21220,
+      "confidence": null
+    },
+    {
+      "text": " context",
+      "startMs": 21360,
+      "endMs": 21880,
+      "timestampMs": 21620,
+      "confidence": null
+    },
+    {
+      "text": " knows",
+      "startMs": 22540,
+      "endMs": 22620,
+      "timestampMs": 22580,
+      "confidence": null
+    },
+    {
+      "text": " when",
+      "startMs": 22620,
+      "endMs": 22920,
+      "timestampMs": 22770,
+      "confidence": null
+    },
+    {
+      "text": " resources",
+      "startMs": 22920,
+      "endMs": 23340,
+      "timestampMs": 23130,
+      "confidence": null
+    },
+    {
+      "text": " are",
+      "startMs": 23340,
+      "endMs": 23660,
+      "timestampMs": 23500,
+      "confidence": null
+    },
+    {
+      "text": " available",
+      "startMs": 23660,
+      "endMs": 23960,
+      "timestampMs": 23810,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 24300,
+      "endMs": 24500,
+      "timestampMs": 24400,
+      "confidence": null
+    },
+    {
+      "text": " can",
+      "startMs": 24500,
+      "endMs": 24720,
+      "timestampMs": 24610,
+      "confidence": null
+    },
+    {
+      "text": " take",
+      "startMs": 24720,
+      "endMs": 24960,
+      "timestampMs": 24840,
+      "confidence": null
+    },
+    {
+      "text": " initiative",
+      "startMs": 24960,
+      "endMs": 25340,
+      "timestampMs": 25150,
+      "confidence": null
+    },
+    {
+      "text": " It's",
+      "startMs": 25860,
+      "endMs": 26380,
+      "timestampMs": 26120,
+      "confidence": null
+    },
+    {
+      "text": " built",
+      "startMs": 26380,
+      "endMs": 26500,
+      "timestampMs": 26440,
+      "confidence": null
+    },
+    {
+      "text": " on",
+      "startMs": 26500,
+      "endMs": 26800,
+      "timestampMs": 26650,
+      "confidence": null
+    },
+    {
+      "text": " three",
+      "startMs": 26800,
+      "endMs": 27160,
+      "timestampMs": 26980,
+      "confidence": null
+    },
+    {
+      "text": " pillars",
+      "startMs": 27160,
+      "endMs": 27500,
+      "timestampMs": 27330,
+      "confidence": null
+    },
+    {
+      "text": " Context",
+      "startMs": 28060,
+      "endMs": 28720,
+      "timestampMs": 28390,
+      "confidence": null
+    },
+    {
+      "text": " Understanding",
+      "startMs": 29520,
+      "endMs": 29720,
+      "timestampMs": 29620,
+      "confidence": null
+    },
+    {
+      "text": " what",
+      "startMs": 29720,
+      "endMs": 29960,
+      "timestampMs": 29840,
+      "confidence": null
+    },
+    {
+      "text": " you're",
+      "startMs": 29960,
+      "endMs": 30140,
+      "timestampMs": 30050,
+      "confidence": null
+    },
+    {
+      "text": " working",
+      "startMs": 30140,
+      "endMs": 30400,
+      "timestampMs": 30270,
+      "confidence": null
+    },
+    {
+      "text": " on",
+      "startMs": 30400,
+      "endMs": 30620,
+      "timestampMs": 30510,
+      "confidence": null
+    },
+    {
+      "text": " by",
+      "startMs": 30620,
+      "endMs": 30880,
+      "timestampMs": 30750,
+      "confidence": null
+    },
+    {
+      "text": " indexing",
+      "startMs": 30880,
+      "endMs": 31480,
+      "timestampMs": 31180,
+      "confidence": null
+    },
+    {
+      "text": " session",
+      "startMs": 31480,
+      "endMs": 31760,
+      "timestampMs": 31620,
+      "confidence": null
+    },
+    {
+      "text": " logs",
+      "startMs": 31760,
+      "endMs": 32020,
+      "timestampMs": 31890,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 32020,
+      "endMs": 32520,
+      "timestampMs": 32270,
+      "confidence": null
+    },
+    {
+      "text": " project",
+      "startMs": 32520,
+      "endMs": 32940,
+      "timestampMs": 32730,
+      "confidence": null
+    },
+    {
+      "text": " structures",
+      "startMs": 32940,
+      "endMs": 33440,
+      "timestampMs": 33190,
+      "confidence": null
+    },
+    {
+      "text": " Resources",
+      "startMs": 34020,
+      "endMs": 34740,
+      "timestampMs": 34380,
+      "confidence": null
+    },
+    {
+      "text": " Monitoring",
+      "startMs": 35700,
+      "endMs": 36000,
+      "timestampMs": 35850,
+      "confidence": null
+    },
+    {
+      "text": " API",
+      "startMs": 36000,
+      "endMs": 36400,
+      "timestampMs": 36200,
+      "confidence": null
+    },
+    {
+      "text": " usage",
+      "startMs": 36400,
+      "endMs": 36800,
+      "timestampMs": 36600,
+      "confidence": null
+    },
+    {
+      "text": " windows",
+      "startMs": 36800,
+      "endMs": 37120,
+      "timestampMs": 36960,
+      "confidence": null
+    },
+    {
+      "text": " to",
+      "startMs": 37120,
+      "endMs": 37460,
+      "timestampMs": 37290,
+      "confidence": null
+    },
+    {
+      "text": " identify",
+      "startMs": 37460,
+      "endMs": 37820,
+      "timestampMs": 37640,
+      "confidence": null
+    },
+    {
+      "text": " when",
+      "startMs": 37820,
+      "endMs": 38180,
+      "timestampMs": 38000,
+      "confidence": null
+    },
+    {
+      "text": " compute",
+      "startMs": 38180,
+      "endMs": 38540,
+      "timestampMs": 38360,
+      "confidence": null
+    },
+    {
+      "text": " is",
+      "startMs": 38540,
+      "endMs": 38820,
+      "timestampMs": 38680,
+      "confidence": null
+    },
+    {
+      "text": " available",
+      "startMs": 38820,
+      "endMs": 39140,
+      "timestampMs": 38980,
+      "confidence": null
+    },
+    {
+      "text": " And",
+      "startMs": 39900,
+      "endMs": 40200,
+      "timestampMs": 40050,
+      "confidence": null
+    },
+    {
+      "text": " agency",
+      "startMs": 40200,
+      "endMs": 40460,
+      "timestampMs": 40330,
+      "confidence": null
+    },
+    {
+      "text": " Moving",
+      "startMs": 41500,
+      "endMs": 41500,
+      "timestampMs": 41500,
+      "confidence": null
+    },
+    {
+      "text": " beyond",
+      "startMs": 41500,
+      "endMs": 41900,
+      "timestampMs": 41700,
+      "confidence": null
+    },
+    {
+      "text": " commands",
+      "startMs": 41900,
+      "endMs": 42300,
+      "timestampMs": 42100,
+      "confidence": null
+    },
+    {
+      "text": " to",
+      "startMs": 42300,
+      "endMs": 42960,
+      "timestampMs": 42630,
+      "confidence": null
+    },
+    {
+      "text": " schedule",
+      "startMs": 42960,
+      "endMs": 42960,
+      "timestampMs": 42960,
+      "confidence": null
+    },
+    {
+      "text": " tasks",
+      "startMs": 42960,
+      "endMs": 43460,
+      "timestampMs": 43210,
+      "confidence": null
+    },
+    {
+      "text": " generate",
+      "startMs": 44200,
+      "endMs": 44240,
+      "timestampMs": 44220,
+      "confidence": null
+    },
+    {
+      "text": " insights",
+      "startMs": 44240,
+      "endMs": 44720,
+      "timestampMs": 44480,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 45060,
+      "endMs": 45320,
+      "timestampMs": 45190,
+      "confidence": null
+    },
+    {
+      "text": " surface",
+      "startMs": 45320,
+      "endMs": 45700,
+      "timestampMs": 45510,
+      "confidence": null
+    },
+    {
+      "text": " recommendations",
+      "startMs": 45700,
+      "endMs": 46400,
+      "timestampMs": 46050,
+      "confidence": null
+    },
+    {
+      "text": " When",
+      "startMs": 46920,
+      "endMs": 47640,
+      "timestampMs": 47280,
+      "confidence": null
+    },
+    {
+      "text": " you",
+      "startMs": 47640,
+      "endMs": 47820,
+      "timestampMs": 47730,
+      "confidence": null
+    },
+    {
+      "text": " launch",
+      "startMs": 47820,
+      "endMs": 48120,
+      "timestampMs": 47970,
+      "confidence": null
+    },
+    {
+      "text": " CC",
+      "startMs": 48120,
+      "endMs": 48580,
+      "timestampMs": 48350,
+      "confidence": null
+    },
+    {
+      "text": " Companion",
+      "startMs": 48580,
+      "endMs": 49020,
+      "timestampMs": 48800,
+      "confidence": null
+    },
+    {
+      "text": " you're",
+      "startMs": 49280,
+      "endMs": 49900,
+      "timestampMs": 49590,
+      "confidence": null
+    },
+    {
+      "text": " greeted",
+      "startMs": 49900,
+      "endMs": 49900,
+      "timestampMs": 49900,
+      "confidence": null
+    },
+    {
+      "text": " with",
+      "startMs": 49900,
+      "endMs": 50120,
+      "timestampMs": 50010,
+      "confidence": null
+    },
+    {
+      "text": " a",
+      "startMs": 50120,
+      "endMs": 50420,
+      "timestampMs": 50270,
+      "confidence": null
+    },
+    {
+      "text": " project",
+      "startMs": 50420,
+      "endMs": 50660,
+      "timestampMs": 50540,
+      "confidence": null
+    },
+    {
+      "text": " selector",
+      "startMs": 50660,
+      "endMs": 51020,
+      "timestampMs": 50840,
+      "confidence": null
+    },
+    {
+      "text": " It",
+      "startMs": 51640,
+      "endMs": 51780,
+      "timestampMs": 51710,
+      "confidence": null
+    },
+    {
+      "text": " discovers",
+      "startMs": 51780,
+      "endMs": 52100,
+      "timestampMs": 51940,
+      "confidence": null
+    },
+    {
+      "text": " all",
+      "startMs": 52100,
+      "endMs": 52500,
+      "timestampMs": 52300,
+      "confidence": null
+    },
+    {
+      "text": " your",
+      "startMs": 52500,
+      "endMs": 52860,
+      "timestampMs": 52680,
+      "confidence": null
+    },
+    {
+      "text": " code",
+      "startMs": 52860,
+      "endMs": 53200,
+      "timestampMs": 53030,
+      "confidence": null
+    },
+    {
+      "text": " projects",
+      "startMs": 53200,
+      "endMs": 53740,
+      "timestampMs": 53470,
+      "confidence": null
+    },
+    {
+      "text": " sorted",
+      "startMs": 54240,
+      "endMs": 54420,
+      "timestampMs": 54330,
+      "confidence": null
+    },
+    {
+      "text": " by",
+      "startMs": 54420,
+      "endMs": 54720,
+      "timestampMs": 54570,
+      "confidence": null
+    },
+    {
+      "text": " recent",
+      "startMs": 54720,
+      "endMs": 55060,
+      "timestampMs": 54890,
+      "confidence": null
+    },
+    {
+      "text": " activity",
+      "startMs": 55060,
+      "endMs": 55620,
+      "timestampMs": 55340,
+      "confidence": null
+    },
+    {
+      "text": " Select",
+      "startMs": 56720,
+      "endMs": 56720,
+      "timestampMs": 56720,
+      "confidence": null
+    },
+    {
+      "text": " a",
+      "startMs": 56720,
+      "endMs": 57260,
+      "timestampMs": 56990,
+      "confidence": null
+    },
+    {
+      "text": " project",
+      "startMs": 57260,
+      "endMs": 57260,
+      "timestampMs": 57260,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 57600,
+      "endMs": 57720,
+      "timestampMs": 57660,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 57720,
+      "endMs": 57940,
+      "timestampMs": 57830,
+      "confidence": null
+    },
+    {
+      "text": " companion",
+      "startMs": 57940,
+      "endMs": 58240,
+      "timestampMs": 58090,
+      "confidence": null
+    },
+    {
+      "text": " sets",
+      "startMs": 58240,
+      "endMs": 58520,
+      "timestampMs": 58380,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 58520,
+      "endMs": 58720,
+      "timestampMs": 58620,
+      "confidence": null
+    },
+    {
+      "text": " working",
+      "startMs": 58720,
+      "endMs": 59020,
+      "timestampMs": 58870,
+      "confidence": null
+    },
+    {
+      "text": " directory",
+      "startMs": 59020,
+      "endMs": 59360,
+      "timestampMs": 59190,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 59360,
+      "endMs": 59980,
+      "timestampMs": 59670,
+      "confidence": null
+    },
+    {
+      "text": " generates",
+      "startMs": 59980,
+      "endMs": 60300,
+      "timestampMs": 60140,
+      "confidence": null
+    },
+    {
+      "text": " an",
+      "startMs": 60300,
+      "endMs": 61000,
+      "timestampMs": 60650,
+      "confidence": null
+    },
+    {
+      "text": " overview",
+      "startMs": 61000,
+      "endMs": 61000,
+      "timestampMs": 61000,
+      "confidence": null
+    },
+    {
+      "text": " automatically",
+      "startMs": 61000,
+      "endMs": 61720,
+      "timestampMs": 61360,
+      "confidence": null
+    },
+    {
+      "text": " The",
+      "startMs": 62740,
+      "endMs": 62920,
+      "timestampMs": 62830,
+      "confidence": null
+    },
+    {
+      "text": " advisor",
+      "startMs": 62920,
+      "endMs": 63320,
+      "timestampMs": 63120,
+      "confidence": null
+    },
+    {
+      "text": " chat",
+      "startMs": 63320,
+      "endMs": 63680,
+      "timestampMs": 63500,
+      "confidence": null
+    },
+    {
+      "text": " is",
+      "startMs": 63680,
+      "endMs": 64160,
+      "timestampMs": 63920,
+      "confidence": null
+    },
+    {
+      "text": " an",
+      "startMs": 64160,
+      "endMs": 64440,
+      "timestampMs": 64300,
+      "confidence": null
+    },
+    {
+      "text": " interactive",
+      "startMs": 64440,
+      "endMs": 64880,
+      "timestampMs": 64660,
+      "confidence": null
+    },
+    {
+      "text": " mode",
+      "startMs": 64880,
+      "endMs": 65200,
+      "timestampMs": 65040,
+      "confidence": null
+    },
+    {
+      "text": " powered",
+      "startMs": 65200,
+      "endMs": 65520,
+      "timestampMs": 65360,
+      "confidence": null
+    },
+    {
+      "text": " by",
+      "startMs": 65520,
+      "endMs": 66000,
+      "timestampMs": 65760,
+      "confidence": null
+    },
+    {
+      "text": " cloud",
+      "startMs": 66000,
+      "endMs": 66000,
+      "timestampMs": 66000,
+      "confidence": null
+    },
+    {
+      "text": " But",
+      "startMs": 66540,
+      "endMs": 66820,
+      "timestampMs": 66680,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 66820,
+      "endMs": 66940,
+      "timestampMs": 66880,
+      "confidence": null
+    },
+    {
+      "text": " advisor",
+      "startMs": 66940,
+      "endMs": 67340,
+      "timestampMs": 67140,
+      "confidence": null
+    },
+    {
+      "text": " doesn't",
+      "startMs": 67340,
+      "endMs": 67760,
+      "timestampMs": 67550,
+      "confidence": null
+    },
+    {
+      "text": " execute",
+      "startMs": 67760,
+      "endMs": 68220,
+      "timestampMs": 67990,
+      "confidence": null
+    },
+    {
+      "text": " code",
+      "startMs": 68220,
+      "endMs": 68560,
+      "timestampMs": 68390,
+      "confidence": null
+    },
+    {
+      "text": " It's",
+      "startMs": 69100,
+      "endMs": 69240,
+      "timestampMs": 69170,
+      "confidence": null
+    },
+    {
+      "text": " designed",
+      "startMs": 69240,
+      "endMs": 69460,
+      "timestampMs": 69350,
+      "confidence": null
+    },
+    {
+      "text": " as",
+      "startMs": 69460,
+      "endMs": 69660,
+      "timestampMs": 69560,
+      "confidence": null
+    },
+    {
+      "text": " a",
+      "startMs": 69660,
+      "endMs": 69940,
+      "timestampMs": 69800,
+      "confidence": null
+    },
+    {
+      "text": " strategist",
+      "startMs": 69940,
+      "endMs": 70560,
+      "timestampMs": 70250,
+      "confidence": null
+    },
+    {
+      "text": " It",
+      "startMs": 71020,
+      "endMs": 71040,
+      "timestampMs": 71030,
+      "confidence": null
+    },
+    {
+      "text": " helps",
+      "startMs": 71040,
+      "endMs": 71160,
+      "timestampMs": 71100,
+      "confidence": null
+    },
+    {
+      "text": " you",
+      "startMs": 71160,
+      "endMs": 71440,
+      "timestampMs": 71300,
+      "confidence": null
+    },
+    {
+      "text": " think",
+      "startMs": 71440,
+      "endMs": 71540,
+      "timestampMs": 71490,
+      "confidence": null
+    },
+    {
+      "text": " through",
+      "startMs": 71540,
+      "endMs": 71800,
+      "timestampMs": 71670,
+      "confidence": null
+    },
+    {
+      "text": " decisions",
+      "startMs": 71800,
+      "endMs": 72240,
+      "timestampMs": 72020,
+      "confidence": null
+    },
+    {
+      "text": " draft",
+      "startMs": 72980,
+      "endMs": 72980,
+      "timestampMs": 72980,
+      "confidence": null
+    },
+    {
+      "text": " instructions",
+      "startMs": 72980,
+      "endMs": 73520,
+      "timestampMs": 73250,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 73840,
+      "endMs": 74060,
+      "timestampMs": 73950,
+      "confidence": null
+    },
+    {
+      "text": " spot",
+      "startMs": 74060,
+      "endMs": 74340,
+      "timestampMs": 74200,
+      "confidence": null
+    },
+    {
+      "text": " blind",
+      "startMs": 74340,
+      "endMs": 74680,
+      "timestampMs": 74510,
+      "confidence": null
+    },
+    {
+      "text": " spots",
+      "startMs": 74680,
+      "endMs": 74960,
+      "timestampMs": 74820,
+      "confidence": null
+    },
+    {
+      "text": " You",
+      "startMs": 75400,
+      "endMs": 75900,
+      "timestampMs": 75650,
+      "confidence": null
+    },
+    {
+      "text": " bridge",
+      "startMs": 75900,
+      "endMs": 76100,
+      "timestampMs": 76000,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 76100,
+      "endMs": 76700,
+      "timestampMs": 76400,
+      "confidence": null
+    },
+    {
+      "text": " advisor",
+      "startMs": 76700,
+      "endMs": 76700,
+      "timestampMs": 76700,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 76700,
+      "endMs": 77000,
+      "timestampMs": 76850,
+      "confidence": null
+    },
+    {
+      "text": " your",
+      "startMs": 77000,
+      "endMs": 77320,
+      "timestampMs": 77160,
+      "confidence": null
+    },
+    {
+      "text": " execution",
+      "startMs": 77320,
+      "endMs": 77640,
+      "timestampMs": 77480,
+      "confidence": null
+    },
+    {
+      "text": " agent",
+      "startMs": 77640,
+      "endMs": 78060,
+      "timestampMs": 77850,
+      "confidence": null
+    },
+    {
+      "text": " maintaining",
+      "startMs": 78940,
+      "endMs": 78940,
+      "timestampMs": 78940,
+      "confidence": null
+    },
+    {
+      "text": " control",
+      "startMs": 78940,
+      "endMs": 79520,
+      "timestampMs": 79230,
+      "confidence": null
+    },
+    {
+      "text": " while",
+      "startMs": 79520,
+      "endMs": 80040,
+      "timestampMs": 79780,
+      "confidence": null
+    },
+    {
+      "text": " benefiting",
+      "startMs": 80040,
+      "endMs": 80440,
+      "timestampMs": 80240,
+      "confidence": null
+    },
+    {
+      "text": " from",
+      "startMs": 80440,
+      "endMs": 80760,
+      "timestampMs": 80600,
+      "confidence": null
+    },
+    {
+      "text": " dual",
+      "startMs": 80760,
+      "endMs": 81020,
+      "timestampMs": 80890,
+      "confidence": null
+    },
+    {
+      "text": " perspectives",
+      "startMs": 81020,
+      "endMs": 81560,
+      "timestampMs": 81290,
+      "confidence": null
+    },
+    {
+      "text": " The",
+      "startMs": 82270,
+      "endMs": 82620,
+      "timestampMs": 82445,
+      "confidence": null
+    },
+    {
+      "text": " session",
+      "startMs": 82620,
+      "endMs": 82960,
+      "timestampMs": 82790,
+      "confidence": null
+    },
+    {
+      "text": " browser",
+      "startMs": 82960,
+      "endMs": 83320,
+      "timestampMs": 83140,
+      "confidence": null
+    },
+    {
+      "text": " lets",
+      "startMs": 83320,
+      "endMs": 83560,
+      "timestampMs": 83440,
+      "confidence": null
+    },
+    {
+      "text": " you",
+      "startMs": 83560,
+      "endMs": 84060,
+      "timestampMs": 83810,
+      "confidence": null
+    },
+    {
+      "text": " explore",
+      "startMs": 84060,
+      "endMs": 84060,
+      "timestampMs": 84060,
+      "confidence": null
+    },
+    {
+      "text": " all",
+      "startMs": 84060,
+      "endMs": 84480,
+      "timestampMs": 84270,
+      "confidence": null
+    },
+    {
+      "text": " past",
+      "startMs": 84480,
+      "endMs": 84920,
+      "timestampMs": 84700,
+      "confidence": null
+    },
+    {
+      "text": " cloud",
+      "startMs": 84920,
+      "endMs": 85040,
+      "timestampMs": 84980,
+      "confidence": null
+    },
+    {
+      "text": " code",
+      "startMs": 85040,
+      "endMs": 85340,
+      "timestampMs": 85190,
+      "confidence": null
+    },
+    {
+      "text": " conversations",
+      "startMs": 85340,
+      "endMs": 85940,
+      "timestampMs": 85640,
+      "confidence": null
+    },
+    {
+      "text": " View",
+      "startMs": 86920,
+      "endMs": 86920,
+      "timestampMs": 86920,
+      "confidence": null
+    },
+    {
+      "text": " metadata",
+      "startMs": 86920,
+      "endMs": 87340,
+      "timestampMs": 87130,
+      "confidence": null
+    },
+    {
+      "text": " like",
+      "startMs": 87340,
+      "endMs": 87690,
+      "timestampMs": 87515,
+      "confidence": null
+    },
+    {
+      "text": " dates",
+      "startMs": 88100,
+      "endMs": 88100,
+      "timestampMs": 88100,
+      "confidence": null
+    },
+    {
+      "text": " message",
+      "startMs": 88500,
+      "endMs": 88720,
+      "timestampMs": 88610,
+      "confidence": null
+    },
+    {
+      "text": " counts",
+      "startMs": 88720,
+      "endMs": 89040,
+      "timestampMs": 88880,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 89380,
+      "endMs": 89560,
+      "timestampMs": 89470,
+      "confidence": null
+    },
+    {
+      "text": " get",
+      "startMs": 89560,
+      "endMs": 89720,
+      "timestampMs": 89640,
+      "confidence": null
+    },
+    {
+      "text": " branches",
+      "startMs": 89720,
+      "endMs": 90080,
+      "timestampMs": 89900,
+      "confidence": null
+    },
+    {
+      "text": " Search",
+      "startMs": 91040,
+      "endMs": 91040,
+      "timestampMs": 91040,
+      "confidence": null
+    },
+    {
+      "text": " across",
+      "startMs": 91040,
+      "endMs": 91380,
+      "timestampMs": 91210,
+      "confidence": null
+    },
+    {
+      "text": " session",
+      "startMs": 91380,
+      "endMs": 91700,
+      "timestampMs": 91540,
+      "confidence": null
+    },
+    {
+      "text": " content",
+      "startMs": 91700,
+      "endMs": 92060,
+      "timestampMs": 91880,
+      "confidence": null
+    },
+    {
+      "text": " with",
+      "startMs": 92060,
+      "endMs": 92380,
+      "timestampMs": 92220,
+      "confidence": null
+    },
+    {
+      "text": " ripgrep",
+      "startMs": 92380,
+      "endMs": 92740,
+      "timestampMs": 92560,
+      "confidence": null
+    },
+    {
+      "text": " integration",
+      "startMs": 92740,
+      "endMs": 93240,
+      "timestampMs": 92990,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 93420,
+      "endMs": 94000,
+      "timestampMs": 93710,
+      "confidence": null
+    },
+    {
+      "text": " review",
+      "startMs": 94000,
+      "endMs": 94220,
+      "timestampMs": 94110,
+      "confidence": null
+    },
+    {
+      "text": " tool",
+      "startMs": 94220,
+      "endMs": 94620,
+      "timestampMs": 94420,
+      "confidence": null
+    },
+    {
+      "text": " call",
+      "startMs": 94620,
+      "endMs": 94860,
+      "timestampMs": 94740,
+      "confidence": null
+    },
+    {
+      "text": " annotations",
+      "startMs": 94860,
+      "endMs": 95380,
+      "timestampMs": 95120,
+      "confidence": null
+    },
+    {
+      "text": " inline",
+      "startMs": 95380,
+      "endMs": 96060,
+      "timestampMs": 95720,
+      "confidence": null
+    },
+    {
+      "text": " A",
+      "startMs": 97020,
+      "endMs": 97160,
+      "timestampMs": 97090,
+      "confidence": null
+    },
+    {
+      "text": " typical",
+      "startMs": 97160,
+      "endMs": 97480,
+      "timestampMs": 97320,
+      "confidence": null
+    },
+    {
+      "text": " workflow",
+      "startMs": 97480,
+      "endMs": 97820,
+      "timestampMs": 97650,
+      "confidence": null
+    },
+    {
+      "text": " goes",
+      "startMs": 97820,
+      "endMs": 98140,
+      "timestampMs": 97980,
+      "confidence": null
+    },
+    {
+      "text": " like",
+      "startMs": 98140,
+      "endMs": 98380,
+      "timestampMs": 98260,
+      "confidence": null
+    },
+    {
+      "text": " this",
+      "startMs": 98380,
+      "endMs": 99140,
+      "timestampMs": 98760,
+      "confidence": null
+    },
+    {
+      "text": " Launch",
+      "startMs": 99620,
+      "endMs": 99620,
+      "timestampMs": 99620,
+      "confidence": null
+    },
+    {
+      "text": " select",
+      "startMs": 100160,
+      "endMs": 100160,
+      "timestampMs": 100160,
+      "confidence": null
+    },
+    {
+      "text": " a",
+      "startMs": 100160,
+      "endMs": 100700,
+      "timestampMs": 100430,
+      "confidence": null
+    },
+    {
+      "text": " project",
+      "startMs": 100700,
+      "endMs": 100700,
+      "timestampMs": 100700,
+      "confidence": null
+    },
+    {
+      "text": " consult",
+      "startMs": 101300,
+      "endMs": 101300,
+      "timestampMs": 101300,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 101300,
+      "endMs": 101580,
+      "timestampMs": 101440,
+      "confidence": null
+    },
+    {
+      "text": " advisor",
+      "startMs": 101580,
+      "endMs": 101880,
+      "timestampMs": 101730,
+      "confidence": null
+    },
+    {
+      "text": " execute",
+      "startMs": 102700,
+      "endMs": 102700,
+      "timestampMs": 102700,
+      "confidence": null
+    },
+    {
+      "text": " with",
+      "startMs": 102700,
+      "endMs": 102900,
+      "timestampMs": 102800,
+      "confidence": null
+    },
+    {
+      "text": " cloud",
+      "startMs": 102900,
+      "endMs": 103180,
+      "timestampMs": 103040,
+      "confidence": null
+    },
+    {
+      "text": " code",
+      "startMs": 103180,
+      "endMs": 103480,
+      "timestampMs": 103330,
+      "confidence": null
+    },
+    {
+      "text": " monitor",
+      "startMs": 104200,
+      "endMs": 104200,
+      "timestampMs": 104200,
+      "confidence": null
+    },
+    {
+      "text": " your",
+      "startMs": 104200,
+      "endMs": 104540,
+      "timestampMs": 104370,
+      "confidence": null
+    },
+    {
+      "text": " API",
+      "startMs": 104540,
+      "endMs": 104800,
+      "timestampMs": 104670,
+      "confidence": null
+    },
+    {
+      "text": " usage",
+      "startMs": 104800,
+      "endMs": 105180,
+      "timestampMs": 104990,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 105460,
+      "endMs": 105860,
+      "timestampMs": 105660,
+      "confidence": null
+    },
+    {
+      "text": " review",
+      "startMs": 105860,
+      "endMs": 105920,
+      "timestampMs": 105890,
+      "confidence": null
+    },
+    {
+      "text": " past",
+      "startMs": 105920,
+      "endMs": 106740,
+      "timestampMs": 106330,
+      "confidence": null
+    },
+    {
+      "text": " sessions",
+      "startMs": 106740,
+      "endMs": 106740,
+      "timestampMs": 106740,
+      "confidence": null
+    },
+    {
+      "text": " The",
+      "startMs": 107560,
+      "endMs": 107720,
+      "timestampMs": 107640,
+      "confidence": null
+    },
+    {
+      "text": " resource",
+      "startMs": 107720,
+      "endMs": 108120,
+      "timestampMs": 107920,
+      "confidence": null
+    },
+    {
+      "text": " monitor",
+      "startMs": 108120,
+      "endMs": 108460,
+      "timestampMs": 108290,
+      "confidence": null
+    },
+    {
+      "text": " tracks",
+      "startMs": 108460,
+      "endMs": 108780,
+      "timestampMs": 108620,
+      "confidence": null
+    },
+    {
+      "text": " your",
+      "startMs": 108780,
+      "endMs": 109060,
+      "timestampMs": 108920,
+      "confidence": null
+    },
+    {
+      "text": " five",
+      "startMs": 109060,
+      "endMs": 109320,
+      "timestampMs": 109190,
+      "confidence": null
+    },
+    {
+      "text": " hour",
+      "startMs": 109320,
+      "endMs": 109540,
+      "timestampMs": 109430,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 109540,
+      "endMs": 109820,
+      "timestampMs": 109680,
+      "confidence": null
+    },
+    {
+      "text": " seven",
+      "startMs": 109820,
+      "endMs": 110080,
+      "timestampMs": 109950,
+      "confidence": null
+    },
+    {
+      "text": " day",
+      "startMs": 110080,
+      "endMs": 110280,
+      "timestampMs": 110180,
+      "confidence": null
+    },
+    {
+      "text": " usage",
+      "startMs": 110280,
+      "endMs": 110540,
+      "timestampMs": 110410,
+      "confidence": null
+    },
+    {
+      "text": " windows",
+      "startMs": 110540,
+      "endMs": 110860,
+      "timestampMs": 110700,
+      "confidence": null
+    },
+    {
+      "text": " in",
+      "startMs": 110860,
+      "endMs": 111080,
+      "timestampMs": 110970,
+      "confidence": null
+    },
+    {
+      "text": " real",
+      "startMs": 111080,
+      "endMs": 111320,
+      "timestampMs": 111200,
+      "confidence": null
+    },
+    {
+      "text": " time",
+      "startMs": 111320,
+      "endMs": 111560,
+      "timestampMs": 111440,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 111800,
+      "endMs": 112160,
+      "timestampMs": 111980,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 112160,
+      "endMs": 112400,
+      "timestampMs": 112280,
+      "confidence": null
+    },
+    {
+      "text": " auto",
+      "startMs": 112400,
+      "endMs": 112700,
+      "timestampMs": 112550,
+      "confidence": null
+    },
+    {
+      "text": " scheduler",
+      "startMs": 112700,
+      "endMs": 113020,
+      "timestampMs": 112860,
+      "confidence": null
+    },
+    {
+      "text": " dispatches",
+      "startMs": 113020,
+      "endMs": 113700,
+      "timestampMs": 113360,
+      "confidence": null
+    },
+    {
+      "text": " tasks",
+      "startMs": 113700,
+      "endMs": 114000,
+      "timestampMs": 113850,
+      "confidence": null
+    },
+    {
+      "text": " when",
+      "startMs": 114000,
+      "endMs": 114460,
+      "timestampMs": 114230,
+      "confidence": null
+    },
+    {
+      "text": " surplus",
+      "startMs": 114460,
+      "endMs": 114820,
+      "timestampMs": 114640,
+      "confidence": null
+    },
+    {
+      "text": " quota",
+      "startMs": 114820,
+      "endMs": 115120,
+      "timestampMs": 114970,
+      "confidence": null
+    },
+    {
+      "text": " is",
+      "startMs": 115120,
+      "endMs": 115380,
+      "timestampMs": 115250,
+      "confidence": null
+    },
+    {
+      "text": " available",
+      "startMs": 115380,
+      "endMs": 115720,
+      "timestampMs": 115550,
+      "confidence": null
+    },
+    {
+      "text": " CC",
+      "startMs": 116820,
+      "endMs": 117000,
+      "timestampMs": 116910,
+      "confidence": null
+    },
+    {
+      "text": " Companion",
+      "startMs": 117000,
+      "endMs": 117400,
+      "timestampMs": 117200,
+      "confidence": null
+    },
+    {
+      "text": " is",
+      "startMs": 117400,
+      "endMs": 117680,
+      "timestampMs": 117540,
+      "confidence": null
+    },
+    {
+      "text": " open",
+      "startMs": 117680,
+      "endMs": 118060,
+      "timestampMs": 117870,
+      "confidence": null
+    },
+    {
+      "text": " source",
+      "startMs": 118060,
+      "endMs": 118280,
+      "timestampMs": 118170,
+      "confidence": null
+    },
+    {
+      "text": " under",
+      "startMs": 118280,
+      "endMs": 118480,
+      "timestampMs": 118380,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 118480,
+      "endMs": 118720,
+      "timestampMs": 118600,
+      "confidence": null
+    },
+    {
+      "text": " MIT",
+      "startMs": 118720,
+      "endMs": 119020,
+      "timestampMs": 118870,
+      "confidence": null
+    },
+    {
+      "text": " license",
+      "startMs": 119020,
+      "endMs": 119540,
+      "timestampMs": 119280,
+      "confidence": null
+    },
+    {
+      "text": " Clone",
+      "startMs": 120440,
+      "endMs": 120440,
+      "timestampMs": 120440,
+      "confidence": null
+    },
+    {
+      "text": " the",
+      "startMs": 120440,
+      "endMs": 120900,
+      "timestampMs": 120670,
+      "confidence": null
+    },
+    {
+      "text": " repo",
+      "startMs": 120900,
+      "endMs": 120900,
+      "timestampMs": 120900,
+      "confidence": null
+    },
+    {
+      "text": " run",
+      "startMs": 121300,
+      "endMs": 121420,
+      "timestampMs": 121360,
+      "confidence": null
+    },
+    {
+      "text": " Cargo",
+      "startMs": 121420,
+      "endMs": 121800,
+      "timestampMs": 121610,
+      "confidence": null
+    },
+    {
+      "text": " Build",
+      "startMs": 121800,
+      "endMs": 122020,
+      "timestampMs": 121910,
+      "confidence": null
+    },
+    {
+      "text": " and",
+      "startMs": 122320,
+      "endMs": 122660,
+      "timestampMs": 122490,
+      "confidence": null
+    },
+    {
+      "text": " start",
+      "startMs": 122660,
+      "endMs": 122860,
+      "timestampMs": 122760,
+      "confidence": null
+    },
+    {
+      "text": " exploring",
+      "startMs": 122860,
+      "endMs": 123220,
+      "timestampMs": 123040,
+      "confidence": null
+    },
+    {
+      "text": " a",
+      "startMs": 123220,
+      "endMs": 123480,
+      "timestampMs": 123350,
+      "confidence": null
+    },
+    {
+      "text": " new",
+      "startMs": 123480,
+      "endMs": 123620,
+      "timestampMs": 123550,
+      "confidence": null
+    },
+    {
+      "text": " kind",
+      "startMs": 123620,
+      "endMs": 123860,
+      "timestampMs": 123740,
+      "confidence": null
+    },
+    {
+      "text": " of",
+      "startMs": 123860,
+      "endMs": 124100,
+      "timestampMs": 123980,
+      "confidence": null
+    },
+    {
+      "text": " human",
+      "startMs": 124100,
+      "endMs": 124280,
+      "timestampMs": 124190,
+      "confidence": null
+    },
+    {
+      "text": " AI",
+      "startMs": 124280,
+      "endMs": 124560,
+      "timestampMs": 124420,
+      "confidence": null
+    },
+    {
+      "text": " collaboration",
+      "startMs": 124560,
+      "endMs": 125120,
+      "timestampMs": 124840,
+      "confidence": null
+    }
+  ],
+  "pages": [
+    {
+      "text": "Meet CC",
+      "startMs": 0,
+      "tokens": [
+        {
+          "text": "Meet",
+          "fromMs": 0,
+          "toMs": 520
+        },
+        {
+          "text": " CC",
+          "fromMs": 520,
+          "toMs": 1220
+        }
+      ],
+      "durationMs": 1220
+    },
+    {
+      "text": "Companion a",
+      "startMs": 1220,
+      "tokens": [
+        {
+          "text": "Companion",
+          "fromMs": 1220,
+          "toMs": 1740
+        },
+        {
+          "text": " a",
+          "fromMs": 1980,
+          "toMs": 2460
+        }
+      ],
+      "durationMs": 1240
+    },
+    {
+      "text": "research platform",
+      "startMs": 2460,
+      "tokens": [
+        {
+          "text": "research",
+          "fromMs": 2460,
+          "toMs": 2900
+        },
+        {
+          "text": " platform",
+          "fromMs": 2900,
+          "toMs": 3380
+        }
+      ],
+      "durationMs": 920
+    },
+    {
+      "text": "for exploring new",
+      "startMs": 3380,
+      "tokens": [
+        {
+          "text": "for",
+          "fromMs": 3380,
+          "toMs": 3760
+        },
+        {
+          "text": " exploring",
+          "fromMs": 3760,
+          "toMs": 4060
+        },
+        {
+          "text": " new",
+          "fromMs": 4060,
+          "toMs": 4640
+        }
+      ],
+      "durationMs": 1260
+    },
+    {
+      "text": "human AI",
+      "startMs": 4640,
+      "tokens": [
+        {
+          "text": "human",
+          "fromMs": 4640,
+          "toMs": 5160
+        },
+        {
+          "text": " AI",
+          "fromMs": 5160,
+          "toMs": 5520
+        }
+      ],
+      "durationMs": 880
+    },
+    {
+      "text": "interaction paradigms",
+      "startMs": 5520,
+      "tokens": [
+        {
+          "text": "interaction",
+          "fromMs": 5520,
+          "toMs": 6200
+        },
+        {
+          "text": " paradigms",
+          "fromMs": 6200,
+          "toMs": 6840
+        }
+      ],
+      "durationMs": 2060
+    },
+    {
+      "text": "built around cloud",
+      "startMs": 7580,
+      "tokens": [
+        {
+          "text": "built",
+          "fromMs": 7580,
+          "toMs": 7620
+        },
+        {
+          "text": " around",
+          "fromMs": 7620,
+          "toMs": 8060
+        },
+        {
+          "text": " cloud",
+          "fromMs": 8060,
+          "toMs": 8540
+        }
+      ],
+      "durationMs": 960
+    },
+    {
+      "text": "code Today's",
+      "startMs": 8540,
+      "tokens": [
+        {
+          "text": "code",
+          "fromMs": 8540,
+          "toMs": 9200
+        },
+        {
+          "text": " Today's",
+          "fromMs": 9880,
+          "toMs": 10400
+        }
+      ],
+      "durationMs": 1860
+    },
+    {
+      "text": "AI assisted development",
+      "startMs": 10400,
+      "tokens": [
+        {
+          "text": "AI",
+          "fromMs": 10400,
+          "toMs": 10780
+        },
+        {
+          "text": " assisted",
+          "fromMs": 10780,
+          "toMs": 11180
+        },
+        {
+          "text": " development",
+          "fromMs": 11180,
+          "toMs": 11640
+        }
+      ],
+      "durationMs": 1240
+    },
+    {
+      "text": "is reactive",
+      "startMs": 11640,
+      "tokens": [
+        {
+          "text": "is",
+          "fromMs": 11640,
+          "toMs": 12020
+        },
+        {
+          "text": " reactive",
+          "fromMs": 12020,
+          "toMs": 12500
+        }
+      ],
+      "durationMs": 1720
+    },
+    {
+      "text": "The human asks",
+      "startMs": 13360,
+      "tokens": [
+        {
+          "text": "The",
+          "fromMs": 13360,
+          "toMs": 13460
+        },
+        {
+          "text": " human",
+          "fromMs": 13460,
+          "toMs": 13760
+        },
+        {
+          "text": " asks",
+          "fromMs": 13760,
+          "toMs": 14200
+        }
+      ],
+      "durationMs": 1260
+    },
+    {
+      "text": "the AI answers",
+      "startMs": 14620,
+      "tokens": [
+        {
+          "text": "the",
+          "fromMs": 14620,
+          "toMs": 14880
+        },
+        {
+          "text": " AI",
+          "fromMs": 14880,
+          "toMs": 15120
+        },
+        {
+          "text": " answers",
+          "fromMs": 15120,
+          "toMs": 15640
+        }
+      ],
+      "durationMs": 1980
+    },
+    {
+      "text": "CC Companion explores",
+      "startMs": 16600,
+      "tokens": [
+        {
+          "text": "CC",
+          "fromMs": 16600,
+          "toMs": 16820
+        },
+        {
+          "text": " Companion",
+          "fromMs": 16820,
+          "toMs": 17340
+        },
+        {
+          "text": " explores",
+          "fromMs": 17340,
+          "toMs": 17820
+        }
+      ],
+      "durationMs": 1220
+    },
+    {
+      "text": "a different approach",
+      "startMs": 17820,
+      "tokens": [
+        {
+          "text": "a",
+          "fromMs": 17820,
+          "toMs": 18080
+        },
+        {
+          "text": " different",
+          "fromMs": 18080,
+          "toMs": 18360
+        },
+        {
+          "text": " approach",
+          "fromMs": 18360,
+          "toMs": 18720
+        }
+      ],
+      "durationMs": 1480
+    },
+    {
+      "text": "A proactive AI",
+      "startMs": 19300,
+      "tokens": [
+        {
+          "text": "A",
+          "fromMs": 19300,
+          "toMs": 19440
+        },
+        {
+          "text": " proactive",
+          "fromMs": 19440,
+          "toMs": 19940
+        },
+        {
+          "text": " AI",
+          "fromMs": 19940,
+          "toMs": 20380
+        }
+      ],
+      "durationMs": 1080
+    },
+    {
+      "text": "companion that has",
+      "startMs": 20380,
+      "tokens": [
+        {
+          "text": "companion",
+          "fromMs": 20380,
+          "toMs": 20800
+        },
+        {
+          "text": " that",
+          "fromMs": 20800,
+          "toMs": 21080
+        },
+        {
+          "text": " has",
+          "fromMs": 21080,
+          "toMs": 21360
+        }
+      ],
+      "durationMs": 980
+    },
+    {
+      "text": "context knows",
+      "startMs": 21360,
+      "tokens": [
+        {
+          "text": "context",
+          "fromMs": 21360,
+          "toMs": 21880
+        },
+        {
+          "text": " knows",
+          "fromMs": 22540,
+          "toMs": 22620
+        }
+      ],
+      "durationMs": 1260
+    },
+    {
+      "text": "when resources are",
+      "startMs": 22620,
+      "tokens": [
+        {
+          "text": "when",
+          "fromMs": 22620,
+          "toMs": 22920
+        },
+        {
+          "text": " resources",
+          "fromMs": 22920,
+          "toMs": 23340
+        },
+        {
+          "text": " are",
+          "fromMs": 23340,
+          "toMs": 23660
+        }
+      ],
+      "durationMs": 1040
+    },
+    {
+      "text": "available and",
+      "startMs": 23660,
+      "tokens": [
+        {
+          "text": "available",
+          "fromMs": 23660,
+          "toMs": 23960
+        },
+        {
+          "text": " and",
+          "fromMs": 24300,
+          "toMs": 24500
+        }
+      ],
+      "durationMs": 840
+    },
+    {
+      "text": "can take initiative",
+      "startMs": 24500,
+      "tokens": [
+        {
+          "text": "can",
+          "fromMs": 24500,
+          "toMs": 24720
+        },
+        {
+          "text": " take",
+          "fromMs": 24720,
+          "toMs": 24960
+        },
+        {
+          "text": " initiative",
+          "fromMs": 24960,
+          "toMs": 25340
+        }
+      ],
+      "durationMs": 1360
+    },
+    {
+      "text": "It's built on",
+      "startMs": 25860,
+      "tokens": [
+        {
+          "text": "It's",
+          "fromMs": 25860,
+          "toMs": 26380
+        },
+        {
+          "text": " built",
+          "fromMs": 26380,
+          "toMs": 26500
+        },
+        {
+          "text": " on",
+          "fromMs": 26500,
+          "toMs": 26800
+        }
+      ],
+      "durationMs": 940
+    },
+    {
+      "text": "three pillars Context",
+      "startMs": 26800,
+      "tokens": [
+        {
+          "text": "three",
+          "fromMs": 26800,
+          "toMs": 27160
+        },
+        {
+          "text": " pillars",
+          "fromMs": 27160,
+          "toMs": 27500
+        },
+        {
+          "text": " Context",
+          "fromMs": 28060,
+          "toMs": 28720
+        }
+      ],
+      "durationMs": 2720
+    },
+    {
+      "text": "Understanding what you're working",
+      "startMs": 29520,
+      "tokens": [
+        {
+          "text": "Understanding",
+          "fromMs": 29520,
+          "toMs": 29720
+        },
+        {
+          "text": " what",
+          "fromMs": 29720,
+          "toMs": 29960
+        },
+        {
+          "text": " you're",
+          "fromMs": 29960,
+          "toMs": 30140
+        },
+        {
+          "text": " working",
+          "fromMs": 30140,
+          "toMs": 30400
+        }
+      ],
+      "durationMs": 880
+    },
+    {
+      "text": "on by indexing",
+      "startMs": 30400,
+      "tokens": [
+        {
+          "text": "on",
+          "fromMs": 30400,
+          "toMs": 30620
+        },
+        {
+          "text": " by",
+          "fromMs": 30620,
+          "toMs": 30880
+        },
+        {
+          "text": " indexing",
+          "fromMs": 30880,
+          "toMs": 31480
+        }
+      ],
+      "durationMs": 1080
+    },
+    {
+      "text": "session logs and",
+      "startMs": 31480,
+      "tokens": [
+        {
+          "text": "session",
+          "fromMs": 31480,
+          "toMs": 31760
+        },
+        {
+          "text": " logs",
+          "fromMs": 31760,
+          "toMs": 32020
+        },
+        {
+          "text": " and",
+          "fromMs": 32020,
+          "toMs": 32520
+        }
+      ],
+      "durationMs": 1040
+    },
+    {
+      "text": "project structures",
+      "startMs": 32520,
+      "tokens": [
+        {
+          "text": "project",
+          "fromMs": 32520,
+          "toMs": 32940
+        },
+        {
+          "text": " structures",
+          "fromMs": 32940,
+          "toMs": 33440
+        }
+      ],
+      "durationMs": 1500
+    },
+    {
+      "text": "Resources Monitoring",
+      "startMs": 34020,
+      "tokens": [
+        {
+          "text": "Resources",
+          "fromMs": 34020,
+          "toMs": 34740
+        },
+        {
+          "text": " Monitoring",
+          "fromMs": 35700,
+          "toMs": 36000
+        }
+      ],
+      "durationMs": 1980
+    },
+    {
+      "text": "API usage windows",
+      "startMs": 36000,
+      "tokens": [
+        {
+          "text": "API",
+          "fromMs": 36000,
+          "toMs": 36400
+        },
+        {
+          "text": " usage",
+          "fromMs": 36400,
+          "toMs": 36800
+        },
+        {
+          "text": " windows",
+          "fromMs": 36800,
+          "toMs": 37120
+        }
+      ],
+      "durationMs": 1120
+    },
+    {
+      "text": "to identify when",
+      "startMs": 37120,
+      "tokens": [
+        {
+          "text": "to",
+          "fromMs": 37120,
+          "toMs": 37460
+        },
+        {
+          "text": " identify",
+          "fromMs": 37460,
+          "toMs": 37820
+        },
+        {
+          "text": " when",
+          "fromMs": 37820,
+          "toMs": 38180
+        }
+      ],
+      "durationMs": 1060
+    },
+    {
+      "text": "compute is available",
+      "startMs": 38180,
+      "tokens": [
+        {
+          "text": "compute",
+          "fromMs": 38180,
+          "toMs": 38540
+        },
+        {
+          "text": " is",
+          "fromMs": 38540,
+          "toMs": 38820
+        },
+        {
+          "text": " available",
+          "fromMs": 38820,
+          "toMs": 39140
+        }
+      ],
+      "durationMs": 1720
+    },
+    {
+      "text": "And agency Moving",
+      "startMs": 39900,
+      "tokens": [
+        {
+          "text": "And",
+          "fromMs": 39900,
+          "toMs": 40200
+        },
+        {
+          "text": " agency",
+          "fromMs": 40200,
+          "toMs": 40460
+        },
+        {
+          "text": " Moving",
+          "fromMs": 41500,
+          "toMs": 41500
+        }
+      ],
+      "durationMs": 1600
+    },
+    {
+      "text": "beyond commands to",
+      "startMs": 41500,
+      "tokens": [
+        {
+          "text": "beyond",
+          "fromMs": 41500,
+          "toMs": 41900
+        },
+        {
+          "text": " commands",
+          "fromMs": 41900,
+          "toMs": 42300
+        },
+        {
+          "text": " to",
+          "fromMs": 42300,
+          "toMs": 42960
+        }
+      ],
+      "durationMs": 1460
+    },
+    {
+      "text": "schedule tasks generate",
+      "startMs": 42960,
+      "tokens": [
+        {
+          "text": "schedule",
+          "fromMs": 42960,
+          "toMs": 42960
+        },
+        {
+          "text": " tasks",
+          "fromMs": 42960,
+          "toMs": 43460
+        },
+        {
+          "text": " generate",
+          "fromMs": 44200,
+          "toMs": 44240
+        }
+      ],
+      "durationMs": 1280
+    },
+    {
+      "text": "insights and",
+      "startMs": 44240,
+      "tokens": [
+        {
+          "text": "insights",
+          "fromMs": 44240,
+          "toMs": 44720
+        },
+        {
+          "text": " and",
+          "fromMs": 45060,
+          "toMs": 45320
+        }
+      ],
+      "durationMs": 1080
+    },
+    {
+      "text": "surface recommendations",
+      "startMs": 45320,
+      "tokens": [
+        {
+          "text": "surface",
+          "fromMs": 45320,
+          "toMs": 45700
+        },
+        {
+          "text": " recommendations",
+          "fromMs": 45700,
+          "toMs": 46400
+        }
+      ],
+      "durationMs": 1600
+    },
+    {
+      "text": "When you",
+      "startMs": 46920,
+      "tokens": [
+        {
+          "text": "When",
+          "fromMs": 46920,
+          "toMs": 47640
+        },
+        {
+          "text": " you",
+          "fromMs": 47640,
+          "toMs": 47820
+        }
+      ],
+      "durationMs": 900
+    },
+    {
+      "text": "launch CC Companion",
+      "startMs": 47820,
+      "tokens": [
+        {
+          "text": "launch",
+          "fromMs": 47820,
+          "toMs": 48120
+        },
+        {
+          "text": " CC",
+          "fromMs": 48120,
+          "toMs": 48580
+        },
+        {
+          "text": " Companion",
+          "fromMs": 48580,
+          "toMs": 49020
+        }
+      ],
+      "durationMs": 1460
+    },
+    {
+      "text": "you're greeted with",
+      "startMs": 49280,
+      "tokens": [
+        {
+          "text": "you're",
+          "fromMs": 49280,
+          "toMs": 49900
+        },
+        {
+          "text": " greeted",
+          "fromMs": 49900,
+          "toMs": 49900
+        },
+        {
+          "text": " with",
+          "fromMs": 49900,
+          "toMs": 50120
+        }
+      ],
+      "durationMs": 840
+    },
+    {
+      "text": "a project selector",
+      "startMs": 50120,
+      "tokens": [
+        {
+          "text": "a",
+          "fromMs": 50120,
+          "toMs": 50420
+        },
+        {
+          "text": " project",
+          "fromMs": 50420,
+          "toMs": 50660
+        },
+        {
+          "text": " selector",
+          "fromMs": 50660,
+          "toMs": 51020
+        }
+      ],
+      "durationMs": 1520
+    },
+    {
+      "text": "It discovers all",
+      "startMs": 51640,
+      "tokens": [
+        {
+          "text": "It",
+          "fromMs": 51640,
+          "toMs": 51780
+        },
+        {
+          "text": " discovers",
+          "fromMs": 51780,
+          "toMs": 52100
+        },
+        {
+          "text": " all",
+          "fromMs": 52100,
+          "toMs": 52500
+        }
+      ],
+      "durationMs": 860
+    },
+    {
+      "text": "your code projects",
+      "startMs": 52500,
+      "tokens": [
+        {
+          "text": "your",
+          "fromMs": 52500,
+          "toMs": 52860
+        },
+        {
+          "text": " code",
+          "fromMs": 52860,
+          "toMs": 53200
+        },
+        {
+          "text": " projects",
+          "fromMs": 53200,
+          "toMs": 53740
+        }
+      ],
+      "durationMs": 1740
+    },
+    {
+      "text": "sorted by recent",
+      "startMs": 54240,
+      "tokens": [
+        {
+          "text": "sorted",
+          "fromMs": 54240,
+          "toMs": 54420
+        },
+        {
+          "text": " by",
+          "fromMs": 54420,
+          "toMs": 54720
+        },
+        {
+          "text": " recent",
+          "fromMs": 54720,
+          "toMs": 55060
+        }
+      ],
+      "durationMs": 820
+    },
+    {
+      "text": "activity Select",
+      "startMs": 55060,
+      "tokens": [
+        {
+          "text": "activity",
+          "fromMs": 55060,
+          "toMs": 55620
+        },
+        {
+          "text": " Select",
+          "fromMs": 56720,
+          "toMs": 56720
+        }
+      ],
+      "durationMs": 1660
+    },
+    {
+      "text": "a project and",
+      "startMs": 56720,
+      "tokens": [
+        {
+          "text": "a",
+          "fromMs": 56720,
+          "toMs": 57260
+        },
+        {
+          "text": " project",
+          "fromMs": 57260,
+          "toMs": 57260
+        },
+        {
+          "text": " and",
+          "fromMs": 57600,
+          "toMs": 57720
+        }
+      ],
+      "durationMs": 1000
+    },
+    {
+      "text": "the companion sets the",
+      "startMs": 57720,
+      "tokens": [
+        {
+          "text": "the",
+          "fromMs": 57720,
+          "toMs": 57940
+        },
+        {
+          "text": " companion",
+          "fromMs": 57940,
+          "toMs": 58240
+        },
+        {
+          "text": " sets",
+          "fromMs": 58240,
+          "toMs": 58520
+        },
+        {
+          "text": " the",
+          "fromMs": 58520,
+          "toMs": 58720
+        }
+      ],
+      "durationMs": 1000
+    },
+    {
+      "text": "working directory and",
+      "startMs": 58720,
+      "tokens": [
+        {
+          "text": "working",
+          "fromMs": 58720,
+          "toMs": 59020
+        },
+        {
+          "text": " directory",
+          "fromMs": 59020,
+          "toMs": 59360
+        },
+        {
+          "text": " and",
+          "fromMs": 59360,
+          "toMs": 59980
+        }
+      ],
+      "durationMs": 1260
+    },
+    {
+      "text": "generates an",
+      "startMs": 59980,
+      "tokens": [
+        {
+          "text": "generates",
+          "fromMs": 59980,
+          "toMs": 60300
+        },
+        {
+          "text": " an",
+          "fromMs": 60300,
+          "toMs": 61000
+        }
+      ],
+      "durationMs": 1020
+    },
+    {
+      "text": "overview automatically The",
+      "startMs": 61000,
+      "tokens": [
+        {
+          "text": "overview",
+          "fromMs": 61000,
+          "toMs": 61000
+        },
+        {
+          "text": " automatically",
+          "fromMs": 61000,
+          "toMs": 61720
+        },
+        {
+          "text": " The",
+          "fromMs": 62740,
+          "toMs": 62920
+        }
+      ],
+      "durationMs": 1920
+    },
+    {
+      "text": "advisor chat is",
+      "startMs": 62920,
+      "tokens": [
+        {
+          "text": "advisor",
+          "fromMs": 62920,
+          "toMs": 63320
+        },
+        {
+          "text": " chat",
+          "fromMs": 63320,
+          "toMs": 63680
+        },
+        {
+          "text": " is",
+          "fromMs": 63680,
+          "toMs": 64160
+        }
+      ],
+      "durationMs": 1240
+    },
+    {
+      "text": "an interactive mode",
+      "startMs": 64160,
+      "tokens": [
+        {
+          "text": "an",
+          "fromMs": 64160,
+          "toMs": 64440
+        },
+        {
+          "text": " interactive",
+          "fromMs": 64440,
+          "toMs": 64880
+        },
+        {
+          "text": " mode",
+          "fromMs": 64880,
+          "toMs": 65200
+        }
+      ],
+      "durationMs": 1040
+    },
+    {
+      "text": "powered by cloud But",
+      "startMs": 65200,
+      "tokens": [
+        {
+          "text": "powered",
+          "fromMs": 65200,
+          "toMs": 65520
+        },
+        {
+          "text": " by",
+          "fromMs": 65520,
+          "toMs": 66000
+        },
+        {
+          "text": " cloud",
+          "fromMs": 66000,
+          "toMs": 66000
+        },
+        {
+          "text": " But",
+          "fromMs": 66540,
+          "toMs": 66820
+        }
+      ],
+      "durationMs": 1620
+    },
+    {
+      "text": "the advisor doesn't",
+      "startMs": 66820,
+      "tokens": [
+        {
+          "text": "the",
+          "fromMs": 66820,
+          "toMs": 66940
+        },
+        {
+          "text": " advisor",
+          "fromMs": 66940,
+          "toMs": 67340
+        },
+        {
+          "text": " doesn't",
+          "fromMs": 67340,
+          "toMs": 67760
+        }
+      ],
+      "durationMs": 940
+    },
+    {
+      "text": "execute code It's",
+      "startMs": 67760,
+      "tokens": [
+        {
+          "text": "execute",
+          "fromMs": 67760,
+          "toMs": 68220
+        },
+        {
+          "text": " code",
+          "fromMs": 68220,
+          "toMs": 68560
+        },
+        {
+          "text": " It's",
+          "fromMs": 69100,
+          "toMs": 69240
+        }
+      ],
+      "durationMs": 1480
+    },
+    {
+      "text": "designed as a strategist",
+      "startMs": 69240,
+      "tokens": [
+        {
+          "text": "designed",
+          "fromMs": 69240,
+          "toMs": 69460
+        },
+        {
+          "text": " as",
+          "fromMs": 69460,
+          "toMs": 69660
+        },
+        {
+          "text": " a",
+          "fromMs": 69660,
+          "toMs": 69940
+        },
+        {
+          "text": " strategist",
+          "fromMs": 69940,
+          "toMs": 70560
+        }
+      ],
+      "durationMs": 1780
+    },
+    {
+      "text": "It helps you think through decisions",
+      "startMs": 71020,
+      "tokens": [
+        {
+          "text": "It",
+          "fromMs": 71020,
+          "toMs": 71040
+        },
+        {
+          "text": " helps",
+          "fromMs": 71040,
+          "toMs": 71160
+        },
+        {
+          "text": " you",
+          "fromMs": 71160,
+          "toMs": 71440
+        },
+        {
+          "text": " think",
+          "fromMs": 71440,
+          "toMs": 71540
+        },
+        {
+          "text": " through",
+          "fromMs": 71540,
+          "toMs": 71800
+        },
+        {
+          "text": " decisions",
+          "fromMs": 71800,
+          "toMs": 72240
+        }
+      ],
+      "durationMs": 1960
+    },
+    {
+      "text": "draft instructions and",
+      "startMs": 72980,
+      "tokens": [
+        {
+          "text": "draft",
+          "fromMs": 72980,
+          "toMs": 72980
+        },
+        {
+          "text": " instructions",
+          "fromMs": 72980,
+          "toMs": 73520
+        },
+        {
+          "text": " and",
+          "fromMs": 73840,
+          "toMs": 74060
+        }
+      ],
+      "durationMs": 1080
+    },
+    {
+      "text": "spot blind spots",
+      "startMs": 74060,
+      "tokens": [
+        {
+          "text": "spot",
+          "fromMs": 74060,
+          "toMs": 74340
+        },
+        {
+          "text": " blind",
+          "fromMs": 74340,
+          "toMs": 74680
+        },
+        {
+          "text": " spots",
+          "fromMs": 74680,
+          "toMs": 74960
+        }
+      ],
+      "durationMs": 1340
+    },
+    {
+      "text": "You bridge the",
+      "startMs": 75400,
+      "tokens": [
+        {
+          "text": "You",
+          "fromMs": 75400,
+          "toMs": 75900
+        },
+        {
+          "text": " bridge",
+          "fromMs": 75900,
+          "toMs": 76100
+        },
+        {
+          "text": " the",
+          "fromMs": 76100,
+          "toMs": 76700
+        }
+      ],
+      "durationMs": 1300
+    },
+    {
+      "text": "advisor and your execution",
+      "startMs": 76700,
+      "tokens": [
+        {
+          "text": "advisor",
+          "fromMs": 76700,
+          "toMs": 76700
+        },
+        {
+          "text": " and",
+          "fromMs": 76700,
+          "toMs": 77000
+        },
+        {
+          "text": " your",
+          "fromMs": 77000,
+          "toMs": 77320
+        },
+        {
+          "text": " execution",
+          "fromMs": 77320,
+          "toMs": 77640
+        }
+      ],
+      "durationMs": 940
+    },
+    {
+      "text": "agent maintaining",
+      "startMs": 77640,
+      "tokens": [
+        {
+          "text": "agent",
+          "fromMs": 77640,
+          "toMs": 78060
+        },
+        {
+          "text": " maintaining",
+          "fromMs": 78940,
+          "toMs": 78940
+        }
+      ],
+      "durationMs": 1300
+    },
+    {
+      "text": "control while",
+      "startMs": 78940,
+      "tokens": [
+        {
+          "text": "control",
+          "fromMs": 78940,
+          "toMs": 79520
+        },
+        {
+          "text": " while",
+          "fromMs": 79520,
+          "toMs": 80040
+        }
+      ],
+      "durationMs": 1100
+    },
+    {
+      "text": "benefiting from dual",
+      "startMs": 80040,
+      "tokens": [
+        {
+          "text": "benefiting",
+          "fromMs": 80040,
+          "toMs": 80440
+        },
+        {
+          "text": " from",
+          "fromMs": 80440,
+          "toMs": 80760
+        },
+        {
+          "text": " dual",
+          "fromMs": 80760,
+          "toMs": 81020
+        }
+      ],
+      "durationMs": 980
+    },
+    {
+      "text": "perspectives The",
+      "startMs": 81020,
+      "tokens": [
+        {
+          "text": "perspectives",
+          "fromMs": 81020,
+          "toMs": 81560
+        },
+        {
+          "text": " The",
+          "fromMs": 82270,
+          "toMs": 82620
+        }
+      ],
+      "durationMs": 1600
+    },
+    {
+      "text": "session browser lets",
+      "startMs": 82620,
+      "tokens": [
+        {
+          "text": "session",
+          "fromMs": 82620,
+          "toMs": 82960
+        },
+        {
+          "text": " browser",
+          "fromMs": 82960,
+          "toMs": 83320
+        },
+        {
+          "text": " lets",
+          "fromMs": 83320,
+          "toMs": 83560
+        }
+      ],
+      "durationMs": 940
+    },
+    {
+      "text": "you explore all",
+      "startMs": 83560,
+      "tokens": [
+        {
+          "text": "you",
+          "fromMs": 83560,
+          "toMs": 84060
+        },
+        {
+          "text": " explore",
+          "fromMs": 84060,
+          "toMs": 84060
+        },
+        {
+          "text": " all",
+          "fromMs": 84060,
+          "toMs": 84480
+        }
+      ],
+      "durationMs": 920
+    },
+    {
+      "text": "past cloud code",
+      "startMs": 84480,
+      "tokens": [
+        {
+          "text": "past",
+          "fromMs": 84480,
+          "toMs": 84920
+        },
+        {
+          "text": " cloud",
+          "fromMs": 84920,
+          "toMs": 85040
+        },
+        {
+          "text": " code",
+          "fromMs": 85040,
+          "toMs": 85340
+        }
+      ],
+      "durationMs": 860
+    },
+    {
+      "text": "conversations View",
+      "startMs": 85340,
+      "tokens": [
+        {
+          "text": "conversations",
+          "fromMs": 85340,
+          "toMs": 85940
+        },
+        {
+          "text": " View",
+          "fromMs": 86920,
+          "toMs": 86920
+        }
+      ],
+      "durationMs": 1580
+    },
+    {
+      "text": "metadata like dates",
+      "startMs": 86920,
+      "tokens": [
+        {
+          "text": "metadata",
+          "fromMs": 86920,
+          "toMs": 87340
+        },
+        {
+          "text": " like",
+          "fromMs": 87340,
+          "toMs": 87690
+        },
+        {
+          "text": " dates",
+          "fromMs": 88100,
+          "toMs": 88100
+        }
+      ],
+      "durationMs": 1580
+    },
+    {
+      "text": "message counts and",
+      "startMs": 88500,
+      "tokens": [
+        {
+          "text": "message",
+          "fromMs": 88500,
+          "toMs": 88720
+        },
+        {
+          "text": " counts",
+          "fromMs": 88720,
+          "toMs": 89040
+        },
+        {
+          "text": " and",
+          "fromMs": 89380,
+          "toMs": 89560
+        }
+      ],
+      "durationMs": 1060
+    },
+    {
+      "text": "get branches Search",
+      "startMs": 89560,
+      "tokens": [
+        {
+          "text": "get",
+          "fromMs": 89560,
+          "toMs": 89720
+        },
+        {
+          "text": " branches",
+          "fromMs": 89720,
+          "toMs": 90080
+        },
+        {
+          "text": " Search",
+          "fromMs": 91040,
+          "toMs": 91040
+        }
+      ],
+      "durationMs": 1480
+    },
+    {
+      "text": "across session content",
+      "startMs": 91040,
+      "tokens": [
+        {
+          "text": "across",
+          "fromMs": 91040,
+          "toMs": 91380
+        },
+        {
+          "text": " session",
+          "fromMs": 91380,
+          "toMs": 91700
+        },
+        {
+          "text": " content",
+          "fromMs": 91700,
+          "toMs": 92060
+        }
+      ],
+      "durationMs": 1020
+    },
+    {
+      "text": "with ripgrep integration",
+      "startMs": 92060,
+      "tokens": [
+        {
+          "text": "with",
+          "fromMs": 92060,
+          "toMs": 92380
+        },
+        {
+          "text": " ripgrep",
+          "fromMs": 92380,
+          "toMs": 92740
+        },
+        {
+          "text": " integration",
+          "fromMs": 92740,
+          "toMs": 93240
+        }
+      ],
+      "durationMs": 1360
+    },
+    {
+      "text": "and review tool",
+      "startMs": 93420,
+      "tokens": [
+        {
+          "text": "and",
+          "fromMs": 93420,
+          "toMs": 94000
+        },
+        {
+          "text": " review",
+          "fromMs": 94000,
+          "toMs": 94220
+        },
+        {
+          "text": " tool",
+          "fromMs": 94220,
+          "toMs": 94620
+        }
+      ],
+      "durationMs": 1200
+    },
+    {
+      "text": "call annotations inline",
+      "startMs": 94620,
+      "tokens": [
+        {
+          "text": "call",
+          "fromMs": 94620,
+          "toMs": 94860
+        },
+        {
+          "text": " annotations",
+          "fromMs": 94860,
+          "toMs": 95380
+        },
+        {
+          "text": " inline",
+          "fromMs": 95380,
+          "toMs": 96060
+        }
+      ],
+      "durationMs": 2400
+    },
+    {
+      "text": "A typical workflow goes",
+      "startMs": 97020,
+      "tokens": [
+        {
+          "text": "A",
+          "fromMs": 97020,
+          "toMs": 97160
+        },
+        {
+          "text": " typical",
+          "fromMs": 97160,
+          "toMs": 97480
+        },
+        {
+          "text": " workflow",
+          "fromMs": 97480,
+          "toMs": 97820
+        },
+        {
+          "text": " goes",
+          "fromMs": 97820,
+          "toMs": 98140
+        }
+      ],
+      "durationMs": 1120
+    },
+    {
+      "text": "like this",
+      "startMs": 98140,
+      "tokens": [
+        {
+          "text": "like",
+          "fromMs": 98140,
+          "toMs": 98380
+        },
+        {
+          "text": " this",
+          "fromMs": 98380,
+          "toMs": 99140
+        }
+      ],
+      "durationMs": 1480
+    },
+    {
+      "text": "Launch select a",
+      "startMs": 99620,
+      "tokens": [
+        {
+          "text": "Launch",
+          "fromMs": 99620,
+          "toMs": 99620
+        },
+        {
+          "text": " select",
+          "fromMs": 100160,
+          "toMs": 100160
+        },
+        {
+          "text": " a",
+          "fromMs": 100160,
+          "toMs": 100700
+        }
+      ],
+      "durationMs": 1080
+    },
+    {
+      "text": "project consult the",
+      "startMs": 100700,
+      "tokens": [
+        {
+          "text": "project",
+          "fromMs": 100700,
+          "toMs": 100700
+        },
+        {
+          "text": " consult",
+          "fromMs": 101300,
+          "toMs": 101300
+        },
+        {
+          "text": " the",
+          "fromMs": 101300,
+          "toMs": 101580
+        }
+      ],
+      "durationMs": 880
+    },
+    {
+      "text": "advisor execute",
+      "startMs": 101580,
+      "tokens": [
+        {
+          "text": "advisor",
+          "fromMs": 101580,
+          "toMs": 101880
+        },
+        {
+          "text": " execute",
+          "fromMs": 102700,
+          "toMs": 102700
+        }
+      ],
+      "durationMs": 1120
+    },
+    {
+      "text": "with cloud code monitor",
+      "startMs": 102700,
+      "tokens": [
+        {
+          "text": "with",
+          "fromMs": 102700,
+          "toMs": 102900
+        },
+        {
+          "text": " cloud",
+          "fromMs": 102900,
+          "toMs": 103180
+        },
+        {
+          "text": " code",
+          "fromMs": 103180,
+          "toMs": 103480
+        },
+        {
+          "text": " monitor",
+          "fromMs": 104200,
+          "toMs": 104200
+        }
+      ],
+      "durationMs": 1500
+    },
+    {
+      "text": "your API usage",
+      "startMs": 104200,
+      "tokens": [
+        {
+          "text": "your",
+          "fromMs": 104200,
+          "toMs": 104540
+        },
+        {
+          "text": " API",
+          "fromMs": 104540,
+          "toMs": 104800
+        },
+        {
+          "text": " usage",
+          "fromMs": 104800,
+          "toMs": 105180
+        }
+      ],
+      "durationMs": 1260
+    },
+    {
+      "text": "and review past",
+      "startMs": 105460,
+      "tokens": [
+        {
+          "text": "and",
+          "fromMs": 105460,
+          "toMs": 105860
+        },
+        {
+          "text": " review",
+          "fromMs": 105860,
+          "toMs": 105920
+        },
+        {
+          "text": " past",
+          "fromMs": 105920,
+          "toMs": 106740
+        }
+      ],
+      "durationMs": 1280
+    },
+    {
+      "text": "sessions The",
+      "startMs": 106740,
+      "tokens": [
+        {
+          "text": "sessions",
+          "fromMs": 106740,
+          "toMs": 106740
+        },
+        {
+          "text": " The",
+          "fromMs": 107560,
+          "toMs": 107720
+        }
+      ],
+      "durationMs": 980
+    },
+    {
+      "text": "resource monitor tracks",
+      "startMs": 107720,
+      "tokens": [
+        {
+          "text": "resource",
+          "fromMs": 107720,
+          "toMs": 108120
+        },
+        {
+          "text": " monitor",
+          "fromMs": 108120,
+          "toMs": 108460
+        },
+        {
+          "text": " tracks",
+          "fromMs": 108460,
+          "toMs": 108780
+        }
+      ],
+      "durationMs": 1060
+    },
+    {
+      "text": "your five hour and",
+      "startMs": 108780,
+      "tokens": [
+        {
+          "text": "your",
+          "fromMs": 108780,
+          "toMs": 109060
+        },
+        {
+          "text": " five",
+          "fromMs": 109060,
+          "toMs": 109320
+        },
+        {
+          "text": " hour",
+          "fromMs": 109320,
+          "toMs": 109540
+        },
+        {
+          "text": " and",
+          "fromMs": 109540,
+          "toMs": 109820
+        }
+      ],
+      "durationMs": 1040
+    },
+    {
+      "text": "seven day usage windows",
+      "startMs": 109820,
+      "tokens": [
+        {
+          "text": "seven",
+          "fromMs": 109820,
+          "toMs": 110080
+        },
+        {
+          "text": " day",
+          "fromMs": 110080,
+          "toMs": 110280
+        },
+        {
+          "text": " usage",
+          "fromMs": 110280,
+          "toMs": 110540
+        },
+        {
+          "text": " windows",
+          "fromMs": 110540,
+          "toMs": 110860
+        }
+      ],
+      "durationMs": 1040
+    },
+    {
+      "text": "in real time and",
+      "startMs": 110860,
+      "tokens": [
+        {
+          "text": "in",
+          "fromMs": 110860,
+          "toMs": 111080
+        },
+        {
+          "text": " real",
+          "fromMs": 111080,
+          "toMs": 111320
+        },
+        {
+          "text": " time",
+          "fromMs": 111320,
+          "toMs": 111560
+        },
+        {
+          "text": " and",
+          "fromMs": 111800,
+          "toMs": 112160
+        }
+      ],
+      "durationMs": 1300
+    },
+    {
+      "text": "the auto scheduler",
+      "startMs": 112160,
+      "tokens": [
+        {
+          "text": "the",
+          "fromMs": 112160,
+          "toMs": 112400
+        },
+        {
+          "text": " auto",
+          "fromMs": 112400,
+          "toMs": 112700
+        },
+        {
+          "text": " scheduler",
+          "fromMs": 112700,
+          "toMs": 113020
+        }
+      ],
+      "durationMs": 860
+    },
+    {
+      "text": "dispatches tasks",
+      "startMs": 113020,
+      "tokens": [
+        {
+          "text": "dispatches",
+          "fromMs": 113020,
+          "toMs": 113700
+        },
+        {
+          "text": " tasks",
+          "fromMs": 113700,
+          "toMs": 114000
+        }
+      ],
+      "durationMs": 980
+    },
+    {
+      "text": "when surplus",
+      "startMs": 114000,
+      "tokens": [
+        {
+          "text": "when",
+          "fromMs": 114000,
+          "toMs": 114460
+        },
+        {
+          "text": " surplus",
+          "fromMs": 114460,
+          "toMs": 114820
+        }
+      ],
+      "durationMs": 820
+    },
+    {
+      "text": "quota is available",
+      "startMs": 114820,
+      "tokens": [
+        {
+          "text": "quota",
+          "fromMs": 114820,
+          "toMs": 115120
+        },
+        {
+          "text": " is",
+          "fromMs": 115120,
+          "toMs": 115380
+        },
+        {
+          "text": " available",
+          "fromMs": 115380,
+          "toMs": 115720
+        }
+      ],
+      "durationMs": 2000
+    },
+    {
+      "text": "CC Companion is",
+      "startMs": 116820,
+      "tokens": [
+        {
+          "text": "CC",
+          "fromMs": 116820,
+          "toMs": 117000
+        },
+        {
+          "text": " Companion",
+          "fromMs": 117000,
+          "toMs": 117400
+        },
+        {
+          "text": " is",
+          "fromMs": 117400,
+          "toMs": 117680
+        }
+      ],
+      "durationMs": 860
+    },
+    {
+      "text": "open source under the",
+      "startMs": 117680,
+      "tokens": [
+        {
+          "text": "open",
+          "fromMs": 117680,
+          "toMs": 118060
+        },
+        {
+          "text": " source",
+          "fromMs": 118060,
+          "toMs": 118280
+        },
+        {
+          "text": " under",
+          "fromMs": 118280,
+          "toMs": 118480
+        },
+        {
+          "text": " the",
+          "fromMs": 118480,
+          "toMs": 118720
+        }
+      ],
+      "durationMs": 1040
+    },
+    {
+      "text": "MIT license",
+      "startMs": 118720,
+      "tokens": [
+        {
+          "text": "MIT",
+          "fromMs": 118720,
+          "toMs": 119020
+        },
+        {
+          "text": " license",
+          "fromMs": 119020,
+          "toMs": 119540
+        }
+      ],
+      "durationMs": 1720
+    },
+    {
+      "text": "Clone the repo run",
+      "startMs": 120440,
+      "tokens": [
+        {
+          "text": "Clone",
+          "fromMs": 120440,
+          "toMs": 120440
+        },
+        {
+          "text": " the",
+          "fromMs": 120440,
+          "toMs": 120900
+        },
+        {
+          "text": " repo",
+          "fromMs": 120900,
+          "toMs": 120900
+        },
+        {
+          "text": " run",
+          "fromMs": 121300,
+          "toMs": 121420
+        }
+      ],
+      "durationMs": 980
+    },
+    {
+      "text": "Cargo Build and",
+      "startMs": 121420,
+      "tokens": [
+        {
+          "text": "Cargo",
+          "fromMs": 121420,
+          "toMs": 121800
+        },
+        {
+          "text": " Build",
+          "fromMs": 121800,
+          "toMs": 122020
+        },
+        {
+          "text": " and",
+          "fromMs": 122320,
+          "toMs": 122660
+        }
+      ],
+      "durationMs": 1240
+    },
+    {
+      "text": "start exploring a",
+      "startMs": 122660,
+      "tokens": [
+        {
+          "text": "start",
+          "fromMs": 122660,
+          "toMs": 122860
+        },
+        {
+          "text": " exploring",
+          "fromMs": 122860,
+          "toMs": 123220
+        },
+        {
+          "text": " a",
+          "fromMs": 123220,
+          "toMs": 123480
+        }
+      ],
+      "durationMs": 820
+    },
+    {
+      "text": "new kind of human AI",
+      "startMs": 123480,
+      "tokens": [
+        {
+          "text": "new",
+          "fromMs": 123480,
+          "toMs": 123620
+        },
+        {
+          "text": " kind",
+          "fromMs": 123620,
+          "toMs": 123860
+        },
+        {
+          "text": " of",
+          "fromMs": 123860,
+          "toMs": 124100
+        },
+        {
+          "text": " human",
+          "fromMs": 124100,
+          "toMs": 124280
+        },
+        {
+          "text": " AI",
+          "fromMs": 124280,
+          "toMs": 124560
+        }
+      ],
+      "durationMs": 1080
+    },
+    {
+      "text": "collaboration",
+      "startMs": 124560,
+      "tokens": [
+        {
+          "text": "collaboration",
+          "fromMs": 124560,
+          "toMs": 125120
+        }
+      ],
+      "durationMs": 560
+    }
+  ]
+}

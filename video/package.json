@@ -1,0 +1,28 @@
+{
+  "name": "cc-companion-video",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx remotion studio",
+    "build": "npx remotion render CcCompanionVideo out/video.mp4",
+    "generate-audio": "npx tsx scripts/generate-audio.mts",
+    "all": "npm run generate-audio && npm run build"
+  },
+  "dependencies": {
+    "@remotion/captions": "4.0.425",
+    "@remotion/cli": "4.0.425",
+    "@remotion/install-whisper-cpp": "4.0.425",
+    "dotenv": "^16.4.0",
+    "openai": "^4.80.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "4.0.425",
+    "zod": "^3.22.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
