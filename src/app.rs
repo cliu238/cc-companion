@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
@@ -58,6 +59,7 @@ pub struct UsageStatus {
 
 #[derive(PartialEq)]
 pub enum Mode {
+    ProjectSelect,
     Chat,
     LogViewer,
 }
@@ -76,6 +78,7 @@ pub enum InputMode {
     ChatInput,
     TaskInput,
     RgInput,
+    PathInput,
 }
 
 pub enum TaskStatus {
@@ -161,6 +164,10 @@ pub struct App {
     pub rg_matches: HashMap<String, usize>,
     pub rg_active: bool,
     rg_rx: Option<Receiver<Result<HashMap<String, usize>, String>>>,
+
+    // Working directory (selected project)
+    pub cwd: PathBuf,
+    pub path_input: String,
 }
 
 impl App {
@@ -168,7 +175,7 @@ impl App {
         let projects = data::load_projects();
         let filtered_project_indices: Vec<usize> = (0..projects.len()).collect();
         let mut app = Self {
-            mode: Mode::Chat,
+            mode: Mode::ProjectSelect,
             view: View::ProjectList,
             input_mode: InputMode::Normal,
             should_quit: false,
@@ -211,9 +218,10 @@ impl App {
             rg_matches: HashMap::new(),
             rg_active: false,
             rg_rx: None,
+            cwd: PathBuf::new(),
+            path_input: String::new(),
         };
         app.fetch_usage();
-        app.send_overview();
         app
     }
 
@@ -327,8 +335,9 @@ impl App {
             InputMode::ChatInput => self.handle_chat_input_key(key),
             InputMode::TaskInput => self.handle_task_input_key(key),
             InputMode::RgInput => self.handle_rg_input_key(key),
+            InputMode::PathInput => self.handle_path_input_key(key),
             InputMode::Normal => {
-                // Shift+Tab toggles mode at top-level views
+                // Shift+Tab toggles mode between Chat and LogViewer only
                 if key.code == KeyCode::BackTab {
                     match self.mode {
                         Mode::Chat => self.mode = Mode::LogViewer,
@@ -340,6 +349,7 @@ impl App {
                     return;
                 }
                 match self.mode {
+                    Mode::ProjectSelect => self.handle_project_select_key(key),
                     Mode::Chat => self.handle_chat_normal_key(key),
                     Mode::LogViewer => self.handle_normal_key(key),
                 }
@@ -436,7 +446,95 @@ impl App {
                     self.chat_scroll = 0;
                 }
             }
+            KeyCode::Char('p') => {
+                if !self.chat_waiting {
+                    self.mode = Mode::ProjectSelect;
+                    self.search_query.clear();
+                    self.refilter();
+                }
+            }
             KeyCode::Char('a') => self.scheduler.toggle(),
+            _ => {}
+        }
+    }
+
+    fn handle_project_select_key(&mut self, key: KeyEvent) {
+        let len = self.filtered_project_indices.len();
+        match key.code {
+            KeyCode::Char('q') => self.should_quit = true,
+            KeyCode::Char('j') | KeyCode::Down => {
+                if len > 0 {
+                    self.project_idx = (self.project_idx + 1).min(len - 1);
+                }
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.project_idx = self.project_idx.saturating_sub(1);
+            }
+            KeyCode::Char('g') => self.project_idx = 0,
+            KeyCode::Char('G') => {
+                if len > 0 {
+                    self.project_idx = len - 1;
+                }
+            }
+            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if len > 0 {
+                    self.project_idx = (self.project_idx + 10).min(len - 1);
+                }
+            }
+            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.project_idx = self.project_idx.saturating_sub(10);
+            }
+            KeyCode::Char('/') => {
+                self.input_mode = InputMode::Search;
+                self.search_query.clear();
+            }
+            KeyCode::Char('a') => {
+                self.input_mode = InputMode::PathInput;
+                self.path_input.clear();
+            }
+            KeyCode::Enter => self.select_project_and_enter_chat(),
+            _ => {}
+        }
+    }
+
+    fn select_project_and_enter_chat(&mut self) {
+        if let Some(&idx) = self.filtered_project_indices.get(self.project_idx) {
+            let path = &self.projects[idx].project_path;
+            if !path.is_empty() {
+                self.cwd = PathBuf::from(path);
+                self.mode = Mode::Chat;
+                self.chat_messages.clear();
+                self.chat_session_id = None;
+                self.chat_error = None;
+                self.chat_scroll = 0;
+                self.send_overview();
+                self.search_query.clear();
+                self.refilter();
+            }
+        }
+    }
+
+    fn handle_path_input_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.input_mode = InputMode::Normal;
+                self.path_input.clear();
+            }
+            KeyCode::Enter => {
+                let path = self.path_input.trim().to_string();
+                if !path.is_empty() && std::path::Path::new(&path).is_dir() {
+                    self.cwd = PathBuf::from(&path);
+                    self.mode = Mode::Chat;
+                    self.path_input.clear();
+                    self.input_mode = InputMode::Normal;
+                    self.chat_messages.clear();
+                    self.chat_session_id = None;
+                    self.chat_scroll = 0;
+                    self.send_overview();
+                }
+            }
+            KeyCode::Backspace => { self.path_input.pop(); }
+            KeyCode::Char(c) => { self.path_input.push(c); }
             _ => {}
         }
     }
@@ -545,12 +643,14 @@ impl App {
     fn send_overview(&mut self) {
         self.chat_messages
             .push(("user".into(), "Generating project overview...".into()));
-        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false, None);
+        let cwd = self.cwd.to_str().map(|s| s.to_string());
+        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref());
     }
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat_messages.push(("user".into(), msg.clone()));
-        self.spawn_claude(msg, true, true, None);
+        let cwd = self.cwd.to_str().map(|s| s.to_string());
+        self.spawn_claude(msg, true, true, cwd.as_deref());
     }
 
     /// Shared helper: spawn a background `claude` CLI call.
@@ -574,7 +674,9 @@ impl App {
         thread::spawn(move || {
             let mut cmd = Command::new("claude");
             if let Some(dir) = &work_dir {
-                cmd.current_dir(dir);
+                if !dir.is_empty() {
+                    cmd.current_dir(dir);
+                }
             }
             if gw_enabled {
                 if let Some(url) = &gw_url {
@@ -899,6 +1001,22 @@ impl App {
 
     fn refilter(&mut self) {
         let query = self.search_query.to_lowercase();
+        // ProjectSelect mode reuses the same project filtering
+        if self.mode == Mode::ProjectSelect {
+            if query.is_empty() {
+                self.filtered_project_indices = (0..self.projects.len()).collect();
+            } else {
+                self.filtered_project_indices = self
+                    .projects
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, p)| p.name.to_lowercase().contains(&query))
+                    .map(|(i, _)| i)
+                    .collect();
+            }
+            self.project_idx = 0;
+            return;
+        }
         match self.view {
             View::ProjectList => {
                 if query.is_empty() {
@@ -956,6 +1074,7 @@ impl App {
                 self.refilter();
             }
             InputMode::RgInput => self.rg_query.push_str(&text),
+            InputMode::PathInput => self.path_input.push_str(&text),
             InputMode::Normal => {}
         }
     }

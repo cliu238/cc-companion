@@ -19,11 +19,13 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     .split(f.area());
 
     // Title bar
-    let cwd_suffix = std::env::current_dir()
-        .ok()
-        .map(|p| format!(" | {}", p.display()))
-        .unwrap_or_default();
+    let cwd_suffix = if app.cwd.as_os_str().is_empty() {
+        String::new()
+    } else {
+        format!(" | {}", app.cwd.display())
+    };
     let title = match app.mode {
+        Mode::ProjectSelect => "cc-companion | Select Project".to_string(),
         Mode::Chat => {
             if app.chat_session_id.is_some() {
                 format!("cc-companion | Chat{cwd_suffix}")
@@ -66,6 +68,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // Main content
     match app.mode {
+        Mode::ProjectSelect => draw_project_select(f, app, chunks[1]),
         Mode::Chat => draw_chat(f, app, chunks[1]),
         Mode::LogViewer => match &app.view {
             View::ProjectList => draw_project_list(f, app, chunks[1]),
@@ -77,11 +80,16 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // Help bar
     let help = match app.mode {
+        Mode::ProjectSelect => match app.input_mode {
+            InputMode::Search => format!("Search: {}_ | Enter=accept Esc=cancel", app.search_query),
+            InputMode::PathInput => format!("Path: {}_ | Enter=open Esc=cancel", app.path_input),
+            _ => "j/k=move Enter=select /=search a=add path q=quit".to_string(),
+        },
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Alt+Enter=newline Ctrl+C=copy Esc=cancel | Shift+Tab=logs".to_string(),
             InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
             _ if app.show_task_list => "j/k=select Ctrl+d/u=scroll D=delete Esc=close".to_string(),
-            _ => "i=type x=task X=tasks j/k=scroll n=new t=tone g=gw a=auto q=quit | Shift+Tab=logs".to_string(),
+            _ => "i=type x=task X=tasks j/k=scroll n=new p=proj t=tone g=gw a=auto q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
             (_, InputMode::Search) => {
@@ -240,6 +248,38 @@ fn draw_project_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             Block::default()
                 .borders(Borders::NONE)
                 .title(format!(" {} projects ", app.filtered_project_indices.len())),
+        )
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    let mut state = ListState::default();
+    state.select(Some(app.project_idx));
+    f.render_stateful_widget(list, area, &mut state);
+}
+
+fn draw_project_select(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    let items: Vec<ListItem> = app
+        .filtered_project_indices
+        .iter()
+        .map(|&i| {
+            let p = &app.projects[i];
+            let line = Line::from(vec![
+                Span::styled(&p.name, Style::default().fg(Color::White)),
+                Span::raw("  "),
+                Span::styled(&p.project_path, Style::default().fg(Color::DarkGray)),
+            ]);
+            ListItem::new(line)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .borders(Borders::NONE)
+                .title(format!(" Select a project ({}) ", app.filtered_project_indices.len())),
         )
         .highlight_style(
             Style::default()
