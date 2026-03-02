@@ -24,7 +24,7 @@ ACCESS_TOKEN=$(echo "$CREDS_JSON" | python3 -c "import sys,json; print(json.load
 RESPONSE=$(curl -sS --fail-with-body \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
-  -H "User-Agent: claude-code/2.0.32" \
+  -H "User-Agent: claude-code" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "anthropic-beta: oauth-2025-04-20" \
   "https://api.anthropic.com/api/oauth/usage" 2>/dev/null) || {

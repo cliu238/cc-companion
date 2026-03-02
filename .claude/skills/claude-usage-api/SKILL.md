@@ -39,7 +39,7 @@ This returns JSON containing `claudeAiOauth.accessToken` — the Bearer token fo
 curl -s \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
-  -H "User-Agent: claude-code/2.0.32" \
+  -H "User-Agent: claude-code" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "anthropic-beta: oauth-2025-04-20" \
   "https://api.anthropic.com/api/oauth/usage"

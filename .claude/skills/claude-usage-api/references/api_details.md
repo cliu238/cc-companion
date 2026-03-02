@@ -12,7 +12,7 @@ GET https://api.anthropic.com/api/oauth/usage
 |---|---|
 | Accept | `application/json, text/plain, */*` |
 | Content-Type | `application/json` |
-| User-Agent | `claude-code/2.0.32` |
+| User-Agent | `claude-code` |
 | Authorization | `Bearer <access_token>` |
 | anthropic-beta | `oauth-2025-04-20` |
 
@@ -125,4 +125,4 @@ interface Credentials {
 - This is an undocumented internal API; Anthropic may change it without notice
 - The `utilization` values match what `/usage` displays inside Claude Code
 - Token expiry is in `expiresAt` (Unix epoch seconds); refresh if expired
-- The `User-Agent` version string should approximate the current Claude Code version
+- The `User-Agent` header should identify as claude-code (version suffix is optional)

@@ -1097,7 +1097,7 @@ fn fetch_oauth_usage() -> Option<UsageStatus> {
             "-s",
             "-H", "Accept: application/json",
             "-H", "Content-Type: application/json",
-            "-H", "User-Agent: claude-code/2.0.32",
+            "-H", "User-Agent: claude-code",
             "-H", &format!("Authorization: Bearer {}", token),
             "-H", "anthropic-beta: oauth-2025-04-20",
             "https://api.anthropic.com/api/oauth/usage",
