@@ -430,9 +430,10 @@ impl App {
                 if self.gateway_url.is_some() {
                     self.gateway_enabled = !self.gateway_enabled;
                 } else {
-                    self.chat_hint = Some(
+                    self.chat_messages.push(("system".into(),
                         "No gateway configured. Add to your shell profile:\n  export ANTHROPIC_BASE_URL=https://dev.sites.idies.jhu.edu/litellm\n  export ANTHROPIC_CUSTOM_HEADERS=\"x-litellm-api-key: Bearer sk-litellm-d2591383180bdbe94246734943cdd6a1\"".into()
-                    );
+                    ));
+                    self.chat_scroll = u16::MAX;
                 }
             }
             KeyCode::Char('t') => {
