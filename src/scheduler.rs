@@ -14,12 +14,26 @@ pub struct AutoTaskDef {
 }
 
 pub const AUTO_TASKS: &[AutoTaskDef] = &[
-    // Fill in tasks later, e.g.:
-    // AutoTaskDef {
-    //     name: "review cc-companion",
-    //     prompt: "Review the codebase for potential improvements...",
-    //     cwd: "/Users/eric/projects6/cc-companion",
-    // },
+    AutoTaskDef {
+        name: "code review",
+        prompt: "Review this project's codebase. Focus on bugs, error handling gaps, and logic issues. Be concise.",
+        cwd: "/Users/ericliu/projects5/cc-companion",
+    },
+    AutoTaskDef {
+        name: "write tests",
+        prompt: "Identify the most critical untested code paths in this project and write unit tests for them.",
+        cwd: "/Users/ericliu/projects5/cc-companion",
+    },
+    AutoTaskDef {
+        name: "refactor suggestions",
+        prompt: "Identify code duplication, overly complex functions, or structural issues in this project. Suggest specific refactoring changes.",
+        cwd: "/Users/ericliu/projects5/cc-companion",
+    },
+    AutoTaskDef {
+        name: "update docs",
+        prompt: "Review the README and CLAUDE.md for this project. Suggest updates to reflect the current codebase state.",
+        cwd: "/Users/ericliu/projects5/cc-companion",
+    },
 ];
 
 pub struct Scheduler {
