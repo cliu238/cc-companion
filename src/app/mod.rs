@@ -248,6 +248,9 @@ impl App {
                 self.chat.waiting = false;
                 self.chat.waiting_since = None;
                 self.chat.response_rx = None;
+                if self.tasks.scheduler.running.is_some() {
+                    self.tasks.scheduler.complete_running();
+                }
             }
         }
 
@@ -310,15 +313,13 @@ impl App {
         }
 
         // Auto-task scheduler
-        if let Some(usage) = &self.usage_status {
+        if let Some(ref usage) = self.usage_status {
             if self.tasks.scheduler.should_launch(usage, self.chat.waiting) {
                 let task = self.tasks.scheduler.next_task();
-                let name = task.name.to_string();
-                let prompt = task.prompt.to_string();
-                let cwd = Some(task.cwd);
                 self.chat.messages
-                    .push(("user".into(), format!("[Auto] {}", name)));
-                self.spawn_claude(prompt, true, true, cwd, None);
+                    .push(("user".into(), format!("[Auto] {}", task.name)));
+                let cwd = self.cwd.display().to_string();
+                self.spawn_claude(task.prompt, true, true, Some(&cwd), None);
             }
         }
     }

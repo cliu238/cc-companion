@@ -13,10 +13,13 @@ impl App {
 
         // Task list popup intercepts keys when visible
         if self.tasks.show_panel {
+            let done_len = self.tasks.scheduler.done.len();
+            let running_offset: usize = if self.tasks.scheduler.running.is_some() { 1 } else { 0 };
+            let total = done_len + running_offset + self.tasks.scheduler.tasks.len();
             match key.code {
                 KeyCode::Char('j') | KeyCode::Down => {
-                    if !self.tasks.items.is_empty() {
-                        self.tasks.selected_idx = (self.tasks.selected_idx + 1).min(self.tasks.items.len() - 1);
+                    if total > 0 {
+                        self.tasks.selected_idx = (self.tasks.selected_idx + 1).min(total - 1);
                         self.tasks.scroll = 0;
                     }
                 }
@@ -31,11 +34,14 @@ impl App {
                     self.tasks.scroll = self.tasks.scroll.saturating_sub(10);
                 }
                 KeyCode::Char('D') => {
-                    if let Some(task) = self.tasks.items.get(self.tasks.selected_idx) {
-                        if !matches!(task.status, super::TaskStatus::Running) {
-                            self.tasks.items.remove(self.tasks.selected_idx);
-                            if self.tasks.selected_idx > 0 && self.tasks.selected_idx >= self.tasks.items.len() {
-                                self.tasks.selected_idx = self.tasks.items.len().saturating_sub(1);
+                    // Only delete pending items (past done + running sections)
+                    let pending_start = done_len + running_offset;
+                    if self.tasks.selected_idx >= pending_start {
+                        let pending_idx = self.tasks.selected_idx - pending_start;
+                        if pending_idx < self.tasks.scheduler.tasks.len() {
+                            self.tasks.scheduler.tasks.remove(pending_idx);
+                            if self.tasks.selected_idx > 0 && self.tasks.selected_idx >= total - 1 {
+                                self.tasks.selected_idx = (total - 2).max(0);
                             }
                         }
                     }

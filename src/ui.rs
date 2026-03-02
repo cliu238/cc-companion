@@ -559,7 +559,7 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     f.render_widget(ratatui::widgets::Clear, popup_area);
 
-    let list_h = (popup_h * 35 / 100).max(3);
+    let list_h = (popup_h * 50 / 100).max(3);
     let output_h = popup_h.saturating_sub(list_h);
     let chunks = Layout::vertical([
         Constraint::Length(list_h),
@@ -567,25 +567,41 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     ])
     .split(popup_area);
 
-    // Task list
-    let items: Vec<ListItem> = app
-        .tasks.items
+    // Done + running + pending auto-tasks
+    let max_cmd = (popup_w as usize).saturating_sub(8);
+    let mut items: Vec<ListItem> = app
+        .tasks.scheduler.done
         .iter()
-        .map(|t| {
-            let icon = match t.status {
-                TaskStatus::Running => Span::styled("... ", Style::default().fg(Color::Yellow)),
-                TaskStatus::Done => Span::styled(" OK ", Style::default().fg(Color::Green)),
-                TaskStatus::Error => Span::styled("ERR ", Style::default().fg(Color::Red)),
-            };
-            let cmd = Span::styled(
-                truncate(&t.command, (popup_w as usize).saturating_sub(8)),
-                Style::default().fg(Color::White),
+        .map(|name| {
+            let icon = Span::styled(" \u{2714} ", Style::default().fg(Color::Green));
+            let label = Span::styled(
+                truncate(name, max_cmd),
+                Style::default().fg(Color::DarkGray),
             );
-            ListItem::new(Line::from(vec![icon, cmd]))
+            ListItem::new(Line::from(vec![icon, label]))
         })
         .collect();
+    if let Some(ref running) = app.tasks.scheduler.running {
+        let icon = Span::styled(" \u{23f3} ", Style::default().fg(Color::Yellow));
+        let label = Span::styled(
+            truncate(running, max_cmd),
+            Style::default().fg(Color::Yellow),
+        );
+        items.push(ListItem::new(Line::from(vec![icon, label])));
+    }
+    items.extend(app.tasks.scheduler.tasks.iter().map(|t| {
+        let icon = Span::styled(" >> ", Style::default().fg(Color::Cyan));
+        let name = Span::styled(
+            truncate(&t.name, max_cmd),
+            Style::default().fg(Color::White),
+        );
+        ListItem::new(Line::from(vec![icon, name]))
+    }));
 
-    let list_title = format!(" {} tasks ", app.tasks.items.len());
+    let done_count = app.tasks.scheduler.done.len();
+    let running_count: usize = if app.tasks.scheduler.running.is_some() { 1 } else { 0 };
+    let pending_count = app.tasks.scheduler.tasks.len();
+    let list_title = format!(" {done_count} done / {running_count} running / {pending_count} pending ");
     let list = List::new(items)
         .block(
             Block::default()
@@ -599,20 +615,21 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
                 .add_modifier(Modifier::BOLD),
         );
     let mut state = ListState::default();
-    if !app.tasks.items.is_empty() {
+    let total = done_count + running_count + pending_count;
+    if total > 0 {
         state.select(Some(app.tasks.selected_idx));
     }
     f.render_stateful_widget(list, chunks[0], &mut state);
 
-    // Selected task output
-    let output_text = if let Some(task) = app.tasks.items.get(app.tasks.selected_idx) {
-        match &task.output {
-            Some(text) => text.clone(),
-            None if matches!(task.status, TaskStatus::Running) => "Running...".to_string(),
-            _ => String::new(),
-        }
+    // Selected task prompt preview
+    let output_text = if app.tasks.selected_idx < done_count {
+        format!("[completed] {}", app.tasks.scheduler.done[app.tasks.selected_idx])
+    } else if running_count > 0 && app.tasks.selected_idx == done_count {
+        format!("[running] {}", app.tasks.scheduler.running.as_deref().unwrap_or(""))
+    } else if let Some(task) = app.tasks.scheduler.tasks.get(app.tasks.selected_idx - done_count - running_count) {
+        format!("[{}]\n{}", task.cwd, task.prompt)
     } else {
-        "No tasks".to_string()
+        "No scheduled tasks".to_string()
     };
 
     let output = Paragraph::new(output_text)

@@ -59,6 +59,8 @@ impl App {
                 self.chat.scroll = 0;
                 self.chat.messages.push(("user".into(), format!("Project: {}", path)));
                 self.send_overview();
+                self.tasks.scheduler = crate::scheduler::Scheduler::new();
+                self.tasks.scheduler.enabled = true;
                 self.search.query.clear();
                 self.refilter();
             }
