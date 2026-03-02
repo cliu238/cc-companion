@@ -646,7 +646,7 @@ impl App {
         self.chat_messages
             .push(("user".into(), "Generating project overview...".into()));
         let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref(), Some("sonnet"));
+        self.spawn_claude(OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref(), None);
     }
 
     fn send_chat_message(&mut self, msg: String) {
