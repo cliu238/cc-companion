@@ -27,7 +27,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let title = match app.mode {
         Mode::ProjectSelect => "cc-companion | Select Project".to_string(),
         Mode::Chat => {
-            if app.chat_session_id.is_some() {
+            if app.chat.session_id.is_some() {
                 format!("cc-companion | Chat{cwd_suffix}")
             } else {
                 format!("cc-companion | Chat (new session){cwd_suffix}")
@@ -81,22 +81,22 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     // Help bar
     let help = match app.mode {
         Mode::ProjectSelect => match app.input_mode {
-            InputMode::Search => format!("Search: {}_ | Enter=accept Esc=cancel", app.search_query),
+            InputMode::Search => format!("Search: {}_ | Enter=accept Esc=cancel", app.search.query),
             InputMode::PathInput => format!("Path: {}_ | Enter=open Esc=cancel", app.path_input),
             _ => "j/k=move Enter=select /=search a=add path q=quit".to_string(),
         },
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Alt+Enter=newline Ctrl+C=copy Esc=cancel | Shift+Tab=logs".to_string(),
             InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
-            _ if app.show_task_list => "j/k=select Ctrl+d/u=scroll D=delete Esc=close".to_string(),
+            _ if app.tasks.show_panel => "j/k=select Ctrl+d/u=scroll D=delete Esc=close".to_string(),
             _ => "i=type x=task X=tasks j/k=scroll n=new p=proj t=tone g=gw a=auto q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
             (_, InputMode::Search) => {
-                format!("Search: {}_ | Enter=accept Esc=cancel", app.search_query)
+                format!("Search: {}_ | Enter=accept Esc=cancel", app.search.query)
             }
             (_, InputMode::RgInput) => {
-                format!("rg: {}_ | Enter=search Esc=cancel", app.rg_query)
+                format!("rg: {}_ | Enter=search Esc=cancel", app.search.rg_query)
             }
             (View::ProjectList, _) => {
                 "j/k=move Enter=open /=search c=CLAUDE.md q=quit | Shift+Tab=chat".to_string()
@@ -114,7 +114,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 }
 
 fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
-    let line_count = app.chat_input.matches('\n').count() + 1;
+    let line_count = app.chat.input.matches('\n').count() + 1;
     let input_height = (line_count as u16 + 2).min(8);
     let chat_chunks = Layout::vertical([
         Constraint::Min(0),
@@ -125,13 +125,13 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
 
     // Messages area
     let mut lines: Vec<Line> = Vec::new();
-    let msg_count = app.chat_messages.len();
-    let blink_on = app.new_msg_at.is_some_and(|t| {
+    let msg_count = app.chat.messages.len();
+    let blink_on = app.chat.new_msg_at.is_some_and(|t| {
         let elapsed = t.elapsed();
         elapsed.as_secs() < 4 && elapsed.as_millis() / 500 % 2 == 0
     });
 
-    for (i, (role, content)) in app.chat_messages.iter().enumerate() {
+    for (i, (role, content)) in app.chat.messages.iter().enumerate() {
         let is_new = blink_on && i == msg_count - 1;
         let (label, color) = match role.as_str() {
             "user" => ("You:", Color::Green),
@@ -152,8 +152,8 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         lines.push(Line::from(""));
     }
 
-    if app.chat_waiting {
-        let secs = app.chat_waiting_since
+    if app.chat.waiting {
+        let secs = app.chat.waiting_since
             .map(|t| t.elapsed().as_secs())
             .unwrap_or(0);
         lines.push(Line::from(Span::styled(
@@ -162,14 +162,14 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         )));
     }
 
-    if let Some(err) = &app.chat_error {
+    if let Some(err) = &app.chat.error {
         lines.push(Line::from(Span::styled(
             format!("Error: {}", err),
             Style::default().fg(Color::Red),
         )));
     }
 
-    if let Some(hint) = &app.chat_hint {
+    if let Some(hint) = &app.chat.hint {
         lines.push(Line::from(Span::styled(
             hint.clone(),
             Style::default().fg(Color::Yellow),
@@ -180,8 +180,8 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     let messages = Paragraph::new(lines).wrap(Wrap { trim: false });
     let total_rendered = messages.line_count(chat_chunks[0].width);
     let max_scroll = total_rendered.saturating_sub(visible_height) as u16;
-    app.chat_scroll = app.chat_scroll.min(max_scroll);
-    let messages = messages.scroll((app.chat_scroll, 0));
+    app.chat.scroll = app.chat.scroll.min(max_scroll);
+    let messages = messages.scroll((app.chat.scroll, 0));
     f.render_widget(messages, chat_chunks[0]);
 
     // Status bar: token usage + session ID
@@ -195,7 +195,7 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     } else {
         Color::DarkGray
     };
-    let input = Paragraph::new(app.chat_input.as_str())
+    let input = Paragraph::new(app.chat.input.as_str())
         .block(
             Block::default()
                 .borders(Borders::ALL)
@@ -207,25 +207,24 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
 
     // Show cursor in input box when active
     if is_input_active {
-        let last_line = app.chat_input.rsplit('\n').next().unwrap_or(&app.chat_input);
+        let last_line = app.chat.input.rsplit('\n').next().unwrap_or(&app.chat.input);
         let cursor_x = chat_chunks[2].x + UnicodeWidthStr::width(last_line) as u16 + 1;
-        let lines_above = app.chat_input.matches('\n').count() as u16;
+        let lines_above = app.chat.input.matches('\n').count() as u16;
         let cursor_y = chat_chunks[2].y + 1 + lines_above;
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
     // Task popups (rendered over chat)
-    if app.show_task_input {
+    if app.tasks.show_input {
         draw_task_input_popup(f, app, area);
     }
-    if app.show_task_list {
+    if app.tasks.show_panel {
         draw_task_list_popup(f, app, area);
     }
 }
 
 fn draw_project_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
-    let items: Vec<ListItem> = app
-        .filtered_project_indices
+    let items: Vec<ListItem> = app.search.project_indices
         .iter()
         .map(|&i| {
             let p = &app.projects[i];
@@ -247,7 +246,7 @@ fn draw_project_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .block(
             Block::default()
                 .borders(Borders::NONE)
-                .title(format!(" {} projects ", app.filtered_project_indices.len())),
+                .title(format!(" {} projects ", app.search.project_indices.len())),
         )
         .highlight_style(
             Style::default()
@@ -261,8 +260,7 @@ fn draw_project_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 }
 
 fn draw_project_select(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
-    let items: Vec<ListItem> = app
-        .filtered_project_indices
+    let items: Vec<ListItem> = app.search.project_indices
         .iter()
         .map(|&i| {
             let p = &app.projects[i];
@@ -279,7 +277,7 @@ fn draw_project_select(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .block(
             Block::default()
                 .borders(Borders::NONE)
-                .title(format!(" Select a project ({}) ", app.filtered_project_indices.len())),
+                .title(format!(" Select a project ({}) ", app.search.project_indices.len())),
         )
         .highlight_style(
             Style::default()
@@ -293,8 +291,7 @@ fn draw_project_select(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 }
 
 fn draw_session_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
-    let items: Vec<ListItem> = app
-        .filtered_session_indices
+    let items: Vec<ListItem> = app.search.session_indices
         .iter()
         .map(|&i| {
             let s = &app.sessions[i];
@@ -318,7 +315,7 @@ fn draw_session_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
                 ),
                 Span::styled(branch, Style::default().fg(Color::Cyan)),
             ];
-            if let Some(&count) = app.rg_matches.get(&s.session_id) {
+            if let Some(&count) = app.search.rg_matches.get(&s.session_id) {
                 spans.push(Span::styled(
                     format!(" ({} hits)", count),
                     Style::default().fg(Color::Magenta),
@@ -330,18 +327,18 @@ fn draw_session_list(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         })
         .collect();
 
-    let title = if app.rg_active {
-        let n = app.rg_matches.len();
+    let title = if app.search.rg_active {
+        let n = app.search.rg_matches.len();
         format!(
             " {} matches for '{}' ({} sessions)  R=clear ",
-            app.filtered_session_indices.len(),
-            app.rg_query,
+            app.search.session_indices.len(),
+            app.search.rg_query,
             n
         )
     } else {
         match &app.clipboard_msg {
-            Some(msg) => format!(" {} sessions  [{}] ", app.filtered_session_indices.len(), msg),
-            None => format!(" {} sessions ", app.filtered_session_indices.len()),
+            Some(msg) => format!(" {} sessions  [{}] ", app.search.session_indices.len(), msg),
+            None => format!(" {} sessions ", app.search.session_indices.len()),
         }
     };
     let list = List::new(items)
@@ -403,7 +400,7 @@ fn draw_claude_md(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 }
 
 fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
-    let session_part = match &app.chat_session_id {
+    let session_part = match &app.chat.session_id {
         Some(id) => format!("Session: {} ", &id[..id.len().min(8)]),
         None => String::new(),
     };
@@ -424,17 +421,17 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     let gw_len: usize = gw_spans.iter().map(|s| s.content.len()).sum();
 
     let tone_spans: Vec<Span> = {
-        let label = format!(" Tone:{}", app.chat_tone.label());
+        let label = format!(" Tone:{}", app.chat.tone.label());
         vec![Span::styled(label, Style::default().fg(Color::Magenta))]
     };
     let tone_len: usize = tone_spans.iter().map(|s| s.content.len()).sum();
 
-    let running_count = app.tasks.iter().filter(|t| matches!(t.status, TaskStatus::Running)).count();
-    let task_spans: Vec<Span> = if !app.tasks.is_empty() {
+    let running_count = app.tasks.items.iter().filter(|t| matches!(t.status, TaskStatus::Running)).count();
+    let task_spans: Vec<Span> = if !app.tasks.items.is_empty() {
         let label = if running_count > 0 {
-            format!(" Tasks:{}/{}", running_count, app.tasks.len())
+            format!(" Tasks:{}/{}", running_count, app.tasks.items.len())
         } else {
-            format!(" Tasks:{}", app.tasks.len())
+            format!(" Tasks:{}", app.tasks.items.len())
         };
         let color = if running_count > 0 { Color::Yellow } else { Color::DarkGray };
         vec![Span::styled(label, Style::default().fg(color))]
@@ -444,7 +441,7 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     let task_len: usize = task_spans.iter().map(|s| s.content.len()).sum();
 
     let auto_spans: Vec<Span> = {
-        let (label, color) = if app.scheduler.enabled {
+        let (label, color) = if app.tasks.scheduler.enabled {
             (" Auto:ON", Color::Green)
         } else {
             (" Auto:OFF", Color::DarkGray)
@@ -544,11 +541,11 @@ fn draw_task_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) 
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Yellow))
         .title(" Run task (sh -c) ");
-    let input = Paragraph::new(app.task_input.as_str()).block(block);
+    let input = Paragraph::new(app.tasks.input.as_str()).block(block);
     f.render_widget(ratatui::widgets::Clear, popup_area);
     f.render_widget(input, popup_area);
 
-    let cursor_x = popup_area.x + UnicodeWidthStr::width(app.task_input.as_str()) as u16 + 1;
+    let cursor_x = popup_area.x + UnicodeWidthStr::width(app.tasks.input.as_str()) as u16 + 1;
     let cursor_y = popup_area.y + 1;
     f.set_cursor_position((cursor_x, cursor_y));
 }
@@ -572,7 +569,7 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     // Task list
     let items: Vec<ListItem> = app
-        .tasks
+        .tasks.items
         .iter()
         .map(|t| {
             let icon = match t.status {
@@ -588,7 +585,7 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         })
         .collect();
 
-    let list_title = format!(" {} tasks ", app.tasks.len());
+    let list_title = format!(" {} tasks ", app.tasks.items.len());
     let list = List::new(items)
         .block(
             Block::default()
@@ -602,13 +599,13 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
                 .add_modifier(Modifier::BOLD),
         );
     let mut state = ListState::default();
-    if !app.tasks.is_empty() {
-        state.select(Some(app.task_list_idx));
+    if !app.tasks.items.is_empty() {
+        state.select(Some(app.tasks.selected_idx));
     }
     f.render_stateful_widget(list, chunks[0], &mut state);
 
     // Selected task output
-    let output_text = if let Some(task) = app.tasks.get(app.task_list_idx) {
+    let output_text = if let Some(task) = app.tasks.items.get(app.tasks.selected_idx) {
         match &task.output {
             Some(text) => text.clone(),
             None if matches!(task.status, TaskStatus::Running) => "Running...".to_string(),
@@ -626,7 +623,7 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
                 .title(" Output "),
         )
         .wrap(Wrap { trim: false })
-        .scroll((app.task_scroll, 0));
+        .scroll((app.tasks.scroll, 0));
     f.render_widget(output, chunks[1]);
 }
 
