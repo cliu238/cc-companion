@@ -55,11 +55,25 @@ impl App {
                                 let task = self.tasks.scheduler.run_task(pending_idx);
                                 self.chat.messages
                                     .push(("user".into(), format!("[Manual] {}", task.name)));
-                                let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-                                self.spawn_claude(task.prompt, true, true, cwd.as_deref(), None);
+                                let cwd = if task.cwd.is_empty() {
+                                    if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) }
+                                } else {
+                                    Some(task.cwd.clone())
+                                };
+                                self.spawn_claude(task.prompt, task.resume, task.read_only, cwd.as_deref(), None, task.setup);
                             }
                         }
                     }
+                }
+                KeyCode::Char('1') => {
+                    let cwd = self.cwd.display().to_string();
+                    self.tasks.scheduler.switch_pipeline(crate::pipeline::Pipeline::Example, &cwd, "");
+                    self.tasks.selected_idx = 0;
+                }
+                KeyCode::Char('2') => {
+                    self.tasks.goal_input = true;
+                    self.tasks.goal_text.clear();
+                    self.input_mode = super::InputMode::TaskInput;
                 }
                 KeyCode::Esc | KeyCode::Char('X') => self.tasks.show_panel = false,
                 _ => {}
@@ -167,19 +181,19 @@ impl App {
         self.chat.messages
             .push(("user".into(), "Generating project overview...".into()));
         let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(super::OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref(), None);
+        self.spawn_claude(super::OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref(), None, None);
     }
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat.messages.push(("user".into(), msg.clone()));
         let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(msg, true, true, cwd.as_deref(), None);
+        self.spawn_claude(msg, true, true, cwd.as_deref(), None, None);
     }
 
     /// Shared helper: spawn a background `claude` CLI call.
     /// `resume` — attach to existing session; `read_only` — disallow write tools.
     /// `cwd` — optional working directory for the claude process.
-    pub(crate) fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool, cwd: Option<&str>, model: Option<&str>) {
+    pub(crate) fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool, cwd: Option<&str>, model: Option<&str>, setup: Option<String>) {
         self.chat.error = None;
         self.chat.waiting = true;
         self.chat.waiting_since = Some(Instant::now());
@@ -196,6 +210,9 @@ impl App {
         self.chat.response_rx = Some(rx);
 
         thread::spawn(move || {
+            if let Some(setup_cmd) = &setup {
+                let _ = Command::new("sh").arg("-c").arg(setup_cmd).output();
+            }
             let mut cmd = Command::new("claude");
             if let Some(dir) = &work_dir {
                 if !dir.is_empty() {

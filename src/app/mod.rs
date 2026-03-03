@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::data::{self, ConversationMessage, Project, SessionEntry};
-use crate::scheduler::Scheduler;
+use crate::pipeline::{Pipeline, Scheduler};
 
 mod chat;
 mod nav;
@@ -119,6 +119,8 @@ pub struct TaskState {
     pub selected_idx: usize,
     pub scroll: u16,
     pub scheduler: Scheduler,
+    pub goal_input: bool,
+    pub goal_text: String,
 }
 
 pub struct SearchState {
@@ -216,7 +218,9 @@ impl App {
                 show_panel: false,
                 selected_idx: 0,
                 scroll: 0,
-                scheduler: Scheduler::new(),
+                scheduler: Scheduler::new(Pipeline::Example, "", ""),
+                goal_input: false,
+                goal_text: String::new(),
             },
             search: SearchState {
                 query: String::new(),
@@ -249,7 +253,14 @@ impl App {
                 self.chat.waiting_since = None;
                 self.chat.response_rx = None;
                 if self.tasks.scheduler.running.is_some() {
-                    self.tasks.scheduler.complete_running();
+                    let output = self.chat.messages.last()
+                        .map(|(_, t)| t.as_str()).unwrap_or("");
+                    let cwd = self.cwd.display().to_string();
+                    let keep_session = self.tasks.scheduler.running_resume;
+                    self.tasks.scheduler.complete_running(output, &cwd);
+                    if !keep_session {
+                        // Non-resuming tasks are independent; keep existing session_id
+                    }
                 }
             }
         }
@@ -318,8 +329,12 @@ impl App {
                 let task = self.tasks.scheduler.next_task();
                 self.chat.messages
                     .push(("user".into(), format!("[Auto] {}", task.name)));
-                let cwd = self.cwd.display().to_string();
-                self.spawn_claude(task.prompt, true, true, Some(&cwd), None);
+                let cwd = if task.cwd.is_empty() {
+                    self.cwd.display().to_string()
+                } else {
+                    task.cwd.clone()
+                };
+                self.spawn_claude(task.prompt, task.resume, task.read_only, Some(&cwd), None, task.setup);
             }
         }
     }

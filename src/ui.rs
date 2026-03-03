@@ -88,7 +88,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Alt+Enter=newline Ctrl+C=copy Esc=cancel | Shift+Tab=logs".to_string(),
             InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
-            _ if app.tasks.show_panel => "j/k=select Enter=run D=delete Ctrl+d/u=scroll Esc=close".to_string(),
+            _ if app.tasks.show_panel => "j/k=select Enter=run D=delete 1..2=pipeline Ctrl+d/u=scroll Esc=close".to_string(),
             _ => "i=type x=task X=tasks j/k=scroll n=new p=proj t=tone g=gw a=auto q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
@@ -217,6 +217,9 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     // Task popups (rendered over chat)
     if app.tasks.show_input {
         draw_task_input_popup(f, app, area);
+    }
+    if app.tasks.goal_input {
+        draw_goal_input_popup(f, app, area);
     }
     if app.tasks.show_panel {
         draw_task_list_popup(f, app, area);
@@ -440,6 +443,12 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     };
     let task_len: usize = task_spans.iter().map(|s| s.content.len()).sum();
 
+    let pipe_spans: Vec<Span> = {
+        let label = format!(" P:{}", app.tasks.scheduler.pipeline.label());
+        vec![Span::styled(label, Style::default().fg(Color::Cyan))]
+    };
+    let pipe_len: usize = pipe_spans.iter().map(|s| s.content.len()).sum();
+
     let auto_spans: Vec<Span> = {
         let (label, color) = if app.tasks.scheduler.enabled {
             (" Auto:ON", Color::Green)
@@ -452,13 +461,14 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
 
     let Some(usage) = &app.usage_status else {
         let left = " Loading usage...";
-        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + auto_len + session_part.len());
+        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + pipe_len + auto_len + session_part.len());
         let mut spans = vec![
             Span::styled(left, Style::default().fg(Color::DarkGray)),
         ];
         spans.extend(gw_spans);
         spans.extend(tone_spans);
         spans.extend(task_spans);
+        spans.extend(pipe_spans);
         spans.extend(auto_spans);
         spans.push(Span::raw(" ".repeat(pad)));
         spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
@@ -517,13 +527,14 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         sonnet_part,
     );
 
-    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + auto_len + session_part.len());
+    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + pipe_len + auto_len + session_part.len());
     let mut spans = vec![
         Span::styled(left, Style::default().fg(color)),
     ];
     spans.extend(gw_spans);
     spans.extend(tone_spans);
     spans.extend(task_spans);
+    spans.extend(pipe_spans);
     spans.extend(auto_spans);
     spans.push(Span::raw(" ".repeat(pad)));
     spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
@@ -546,6 +557,26 @@ fn draw_task_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) 
     f.render_widget(input, popup_area);
 
     let cursor_x = popup_area.x + UnicodeWidthStr::width(app.tasks.input.as_str()) as u16 + 1;
+    let cursor_y = popup_area.y + 1;
+    f.set_cursor_position((cursor_x, cursor_y));
+}
+
+fn draw_goal_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    let popup_w = (area.width * 60 / 100).max(30);
+    let popup_h = 3;
+    let x = area.x + (area.width.saturating_sub(popup_w)) / 2;
+    let y = area.y + (area.height.saturating_sub(popup_h)) / 2;
+    let popup_area = ratatui::layout::Rect::new(x, y, popup_w, popup_h);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(" Self-Evolve goal (empty=autonomous) ");
+    let input = Paragraph::new(app.tasks.goal_text.as_str()).block(block);
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+    f.render_widget(input, popup_area);
+
+    let cursor_x = popup_area.x + UnicodeWidthStr::width(app.tasks.goal_text.as_str()) as u16 + 1;
     let cursor_y = popup_area.y + 1;
     f.set_cursor_position((cursor_x, cursor_y));
 }
@@ -601,7 +632,8 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let done_count = app.tasks.scheduler.done.len();
     let running_count: usize = if app.tasks.scheduler.running.is_some() { 1 } else { 0 };
     let pending_count = app.tasks.scheduler.tasks.len();
-    let list_title = format!(" {done_count} done / {running_count} running / {pending_count} pending ");
+    let pipe_label = app.tasks.scheduler.pipeline.label();
+    let list_title = format!(" {pipe_label} | {done_count} done / {running_count} running / {pending_count} pending ");
     let list = List::new(items)
         .block(
             Block::default()

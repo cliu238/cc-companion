@@ -1,7 +1,7 @@
 mod app;
 mod data;
 mod platform;
-mod scheduler;
+mod pipeline;
 mod ui;
 
 use std::io;
