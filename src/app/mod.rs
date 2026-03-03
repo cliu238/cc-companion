@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicU32;
 use std::sync::mpsc::{self, Receiver};
+use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
 
@@ -109,6 +111,8 @@ pub struct ChatState {
     pub tone: ChatTone,
     pub hint: Option<String>,
     pub new_msg_at: Option<Instant>,
+    /// PID of running claude process (0 = none), shared with spawned thread.
+    pub(crate) child_pid: Arc<AtomicU32>,
 }
 
 pub struct TaskState {
@@ -212,6 +216,7 @@ impl App {
                 tone: ChatTone::Advisor,
                 hint: None,
                 new_msg_at: None,
+                child_pid: Arc::new(AtomicU32::new(0)),
             },
             tasks: TaskState {
                 items: Vec::new(),

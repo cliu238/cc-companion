@@ -1,5 +1,7 @@
 use std::process::Command;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
 
@@ -107,6 +109,11 @@ impl App {
         }
 
         match key.code {
+            KeyCode::Esc => {
+                if self.chat.waiting {
+                    self.cancel_running();
+                }
+            }
             KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Char('i') | KeyCode::Enter => {
                 if !self.chat.waiting {
@@ -222,6 +229,7 @@ impl App {
         self.chat.error = None;
         self.chat.waiting = true;
         self.chat.waiting_since = Some(Instant::now());
+        self.chat.child_pid.store(0, Ordering::Relaxed);
 
         let session_id = if resume { self.chat.session_id.clone() } else { None };
         let gw_enabled = self.gateway_enabled;
@@ -230,6 +238,7 @@ impl App {
         let system_prompt = format!("{}{}", BASE_SYSTEM_PROMPT, self.chat.tone.suffix());
         let work_dir = cwd.map(|s| s.to_string());
         let model_flag = model.map(|s| s.to_string());
+        let pid_handle = Arc::clone(&self.chat.child_pid);
 
         let (tx, rx) = mpsc::channel();
         self.chat.response_rx = Some(rx);
@@ -271,24 +280,51 @@ impl App {
                 cmd.arg("--resume").arg(id);
             }
 
-            let result = match cmd.output() {
-                Ok(output) => {
-                    if output.status.success() {
-                        let raw = String::from_utf8_lossy(&output.stdout);
-                        super::parse_claude_json(&raw)
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                        Err(if stderr.is_empty() {
-                            "claude exited with error".into()
-                        } else {
-                            stderr
-                        })
+            let result = match cmd.spawn() {
+                Ok(child) => {
+                    pid_handle.store(child.id(), Ordering::Relaxed);
+                    match child.wait_with_output() {
+                        Ok(output) => {
+                            pid_handle.store(0, Ordering::Relaxed);
+                            if output.status.success() {
+                                let raw = String::from_utf8_lossy(&output.stdout);
+                                super::parse_claude_json(&raw)
+                            } else {
+                                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                                Err(if stderr.is_empty() {
+                                    "claude exited with error".into()
+                                } else {
+                                    stderr
+                                })
+                            }
+                        }
+                        Err(e) => {
+                            pid_handle.store(0, Ordering::Relaxed);
+                            Err(format!("Failed waiting for claude: {}", e))
+                        }
                     }
                 }
                 Err(e) => Err(format!("Failed to run claude: {}", e)),
             };
             let _ = tx.send(result);
         });
+    }
+
+    /// Cancel the currently running claude process.
+    pub(crate) fn cancel_running(&mut self) {
+        let pid = self.chat.child_pid.swap(0, Ordering::Relaxed);
+        if pid != 0 {
+            // Kill the process and its children
+            let _ = Command::new("kill").arg(pid.to_string()).output();
+        }
+        self.chat.waiting = false;
+        self.chat.waiting_since = None;
+        self.chat.response_rx = None;
+        self.chat.messages.push(("system".into(), "[Cancelled]".into()));
+        self.chat.scroll = u16::MAX;
+        if self.tasks.scheduler.running.is_some() {
+            self.tasks.scheduler.running = None;
+        }
     }
 
     pub fn handle_paste(&mut self, text: String) {
