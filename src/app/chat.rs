@@ -46,6 +46,21 @@ impl App {
                         }
                     }
                 }
+                KeyCode::Enter => {
+                    if !self.chat.waiting {
+                        let pending_start = done_len + running_offset;
+                        if self.tasks.selected_idx >= pending_start {
+                            let pending_idx = self.tasks.selected_idx - pending_start;
+                            if pending_idx < self.tasks.scheduler.tasks.len() {
+                                let task = self.tasks.scheduler.run_task(pending_idx);
+                                self.chat.messages
+                                    .push(("user".into(), format!("[Manual] {}", task.name)));
+                                let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
+                                self.spawn_claude(task.prompt, true, true, cwd.as_deref(), None);
+                            }
+                        }
+                    }
+                }
                 KeyCode::Esc | KeyCode::Char('X') => self.tasks.show_panel = false,
                 _ => {}
             }

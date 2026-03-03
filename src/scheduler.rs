@@ -61,6 +61,12 @@ impl Scheduler {
         task
     }
 
+    pub fn run_task(&mut self, idx: usize) -> AutoTask {
+        let task = self.tasks.remove(idx);
+        self.running = Some(task.name.clone());
+        task
+    }
+
     pub fn complete_running(&mut self) {
         if let Some(name) = self.running.take() {
             self.done.push(name);

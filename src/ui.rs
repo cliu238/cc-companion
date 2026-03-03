@@ -88,7 +88,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Alt+Enter=newline Ctrl+C=copy Esc=cancel | Shift+Tab=logs".to_string(),
             InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
-            _ if app.tasks.show_panel => "j/k=select Ctrl+d/u=scroll D=delete Esc=close".to_string(),
+            _ if app.tasks.show_panel => "j/k=select Enter=run D=delete Ctrl+d/u=scroll Esc=close".to_string(),
             _ => "i=type x=task X=tasks j/k=scroll n=new p=proj t=tone g=gw a=auto q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
