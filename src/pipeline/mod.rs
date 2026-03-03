@@ -127,6 +127,10 @@ impl Scheduler {
             let new_tasks = self.pipeline.on_complete(&name, output, project_cwd, &self.goal);
             self.tasks.extend(new_tasks);
             self.done.push(name);
+            // Cycle: start new round when queue is empty (SelfEvolve only)
+            if self.tasks.is_empty() && self.pipeline == Pipeline::SelfEvolve {
+                self.tasks = self.pipeline.initial_tasks(project_cwd, &self.goal);
+            }
         }
     }
 
