@@ -121,6 +121,8 @@ pub struct TaskState {
     pub scheduler: Scheduler,
     pub goal_input: bool,
     pub goal_text: String,
+    pub pipeline_picker: bool,
+    pub pipeline_idx: usize,
 }
 
 pub struct SearchState {
@@ -221,6 +223,8 @@ impl App {
                 scheduler: Scheduler::new(Pipeline::Example, "", ""),
                 goal_input: false,
                 goal_text: String::new(),
+                pipeline_picker: false,
+                pipeline_idx: 0,
             },
             search: SearchState {
                 query: String::new(),
@@ -325,7 +329,7 @@ impl App {
 
         // Auto-task scheduler
         if let Some(ref usage) = self.usage_status {
-            if self.tasks.scheduler.should_launch(usage, self.chat.waiting) {
+            if !self.tasks.show_panel && self.tasks.scheduler.should_launch(usage, self.chat.waiting) {
                 let task = self.tasks.scheduler.next_task();
                 self.chat.messages
                     .push(("user".into(), format!("[Auto] {}", task.name)));

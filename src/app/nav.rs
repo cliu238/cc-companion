@@ -62,7 +62,6 @@ impl App {
                 self.tasks.scheduler = crate::pipeline::Scheduler::new(
                     crate::pipeline::Pipeline::Example, &path, "",
                 );
-                self.tasks.scheduler.enabled = true;
                 self.search.query.clear();
                 self.refilter();
             }

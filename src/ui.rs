@@ -88,7 +88,8 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Alt+Enter=newline Ctrl+C=copy Esc=cancel | Shift+Tab=logs".to_string(),
             InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
-            _ if app.tasks.show_panel => "j/k=select Enter=run D=delete 1..2=pipeline Ctrl+d/u=scroll Esc=close".to_string(),
+            _ if app.tasks.pipeline_picker => "j/k=select Enter=choose Esc=cancel".to_string(),
+            _ if app.tasks.show_panel => "j/k=select Enter=run d=delete p=pipeline Ctrl+d/u=scroll Esc=close".to_string(),
             _ => "i=type x=task X=tasks j/k=scroll n=new p=proj t=tone g=gw a=auto q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
@@ -214,15 +215,18 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
-    // Task popups (rendered over chat)
+    // Task popups (rendered over chat, last = on top)
     if app.tasks.show_input {
         draw_task_input_popup(f, app, area);
+    }
+    if app.tasks.show_panel {
+        draw_task_list_popup(f, app, area);
     }
     if app.tasks.goal_input {
         draw_goal_input_popup(f, app, area);
     }
-    if app.tasks.show_panel {
-        draw_task_list_popup(f, app, area);
+    if app.tasks.pipeline_picker {
+        draw_pipeline_picker(f, app, area);
     }
 }
 
@@ -581,6 +585,47 @@ fn draw_goal_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) 
     f.set_cursor_position((cursor_x, cursor_y));
 }
 
+fn draw_pipeline_picker(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    let pipelines = crate::pipeline::Pipeline::all();
+    // 2 lines per pipeline (name + description) + 1 blank between + border
+    let content_h = pipelines.len() as u16 * 3;
+    let popup_h = content_h + 2; // borders
+    let popup_w = 70u16.min(area.width.saturating_sub(4));
+    let x = area.x + (area.width.saturating_sub(popup_w)) / 2;
+    let y = area.y + (area.height.saturating_sub(popup_h)) / 2;
+    let popup_area = ratatui::layout::Rect::new(x, y, popup_w, popup_h);
+
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+
+    let mut lines: Vec<Line> = Vec::new();
+    for (i, p) in pipelines.iter().enumerate() {
+        let marker = if i == app.tasks.pipeline_idx { " > " } else { "   " };
+        let name_style = if i == app.tasks.pipeline_idx {
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        lines.push(Line::from(vec![
+            Span::styled(marker, name_style),
+            Span::styled(p.label(), name_style),
+        ]));
+        lines.push(Line::from(Span::styled(
+            format!("   {}", p.description()),
+            Style::default().fg(Color::DarkGray),
+        )));
+        if i + 1 < pipelines.len() {
+            lines.push(Line::from(""));
+        }
+    }
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(" Select Pipeline ");
+    let paragraph = Paragraph::new(lines).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
 fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let popup_w = (area.width * 80 / 100).max(40);
     let popup_h = (area.height * 80 / 100).max(10);
@@ -664,12 +709,19 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         "No scheduled tasks".to_string()
     };
 
+    let output_title = if app.tasks.selected_idx < done_count {
+        " Output "
+    } else if running_count > 0 && app.tasks.selected_idx == done_count {
+        " Running "
+    } else {
+        " Prompt "
+    };
     let output = Paragraph::new(output_text)
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::DarkGray))
-                .title(" Output "),
+                .title(output_title),
         )
         .wrap(Wrap { trim: false })
         .scroll((app.tasks.scroll, 0));

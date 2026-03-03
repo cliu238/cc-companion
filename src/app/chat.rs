@@ -5,11 +5,42 @@ use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use crate::pipeline::Pipeline;
+
 use super::{App, InputMode, BASE_SYSTEM_PROMPT};
 
 impl App {
     pub(crate) fn handle_chat_normal_key(&mut self, key: KeyEvent) {
         self.chat.hint = None;
+
+        // Pipeline picker popup intercepts keys when visible
+        if self.tasks.pipeline_picker {
+            let pipelines = Pipeline::all();
+            match key.code {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    self.tasks.pipeline_idx = (self.tasks.pipeline_idx + 1).min(pipelines.len() - 1);
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    self.tasks.pipeline_idx = self.tasks.pipeline_idx.saturating_sub(1);
+                }
+                KeyCode::Enter => {
+                    let selected = pipelines[self.tasks.pipeline_idx];
+                    self.tasks.pipeline_picker = false;
+                    if selected == Pipeline::SelfEvolve {
+                        self.tasks.goal_input = true;
+                        self.tasks.goal_text.clear();
+                        self.input_mode = InputMode::TaskInput;
+                    } else {
+                        let cwd = self.cwd.display().to_string();
+                        self.tasks.scheduler.switch_pipeline(selected, &cwd, "");
+                        self.tasks.selected_idx = 0;
+                    }
+                }
+                KeyCode::Esc => { self.tasks.pipeline_picker = false; }
+                _ => {}
+            }
+            return;
+        }
 
         // Task list popup intercepts keys when visible
         if self.tasks.show_panel {
@@ -33,7 +64,7 @@ impl App {
                 KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     self.tasks.scroll = self.tasks.scroll.saturating_sub(10);
                 }
-                KeyCode::Char('D') => {
+                KeyCode::Char('D') | KeyCode::Char('d') => {
                     // Only delete pending items (past done + running sections)
                     let pending_start = done_len + running_offset;
                     if self.tasks.selected_idx >= pending_start {
@@ -65,15 +96,9 @@ impl App {
                         }
                     }
                 }
-                KeyCode::Char('1') => {
-                    let cwd = self.cwd.display().to_string();
-                    self.tasks.scheduler.switch_pipeline(crate::pipeline::Pipeline::Example, &cwd, "");
-                    self.tasks.selected_idx = 0;
-                }
-                KeyCode::Char('2') => {
-                    self.tasks.goal_input = true;
-                    self.tasks.goal_text.clear();
-                    self.input_mode = super::InputMode::TaskInput;
+                KeyCode::Char('P') | KeyCode::Char('p') => {
+                    self.tasks.pipeline_picker = true;
+                    self.tasks.pipeline_idx = 0;
                 }
                 KeyCode::Esc | KeyCode::Char('X') => self.tasks.show_panel = false,
                 _ => {}

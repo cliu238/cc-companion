@@ -33,6 +33,17 @@ impl Pipeline {
         }
     }
 
+    pub fn description(&self) -> &str {
+        match self {
+            Self::Example => "Read-only analysis tasks (code review, tests, refactor, docs)",
+            Self::SelfEvolve => "Analyze project, generate improvements, implement via worktree PRs",
+        }
+    }
+
+    pub fn all() -> &'static [Pipeline] {
+        &[Pipeline::Example, Pipeline::SelfEvolve]
+    }
+
     pub fn initial_tasks(&self, project_cwd: &str, goal: &str) -> Vec<AutoTask> {
         match self {
             Self::Example => example::tasks(project_cwd),
