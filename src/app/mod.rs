@@ -459,6 +459,104 @@ fn fetch_oauth_usage() -> Option<UsageStatus> {
     })
 }
 
+#[cfg(test)]
+impl App {
+    /// Side-effect-free constructor for tests: no file I/O, no threads.
+    pub(crate) fn test_default() -> Self {
+        Self {
+            mode: Mode::ProjectSelect,
+            view: View::ProjectList,
+            input_mode: InputMode::Normal,
+            should_quit: false,
+            projects: Vec::new(),
+            sessions: Vec::new(),
+            conversation: Vec::new(),
+            claude_md_content: String::new(),
+            project_idx: 0,
+            session_idx: 0,
+            scroll_offset: 0,
+            clipboard_msg: None,
+            usage_status: None,
+            usage_rx: None,
+            usage_fetching: false,
+            gateway_url: None,
+            gateway_headers: None,
+            gateway_enabled: false,
+            cwd: PathBuf::new(),
+            path_input: String::new(),
+            chat: ChatState {
+                messages: Vec::new(),
+                input: String::new(),
+                scroll: 0,
+                waiting: false,
+                waiting_since: None,
+                error: None,
+                session_id: None,
+                response_rx: None,
+                tone: ChatTone::Advisor,
+                hint: None,
+                new_msg_at: None,
+                child_pid: Arc::new(AtomicU32::new(0)),
+            },
+            tasks: TaskState {
+                items: Vec::new(),
+                show_input: false,
+                input: String::new(),
+                show_panel: false,
+                selected_idx: 0,
+                scroll: 0,
+                scheduler: Scheduler::new(Pipeline::Example, "", ""),
+                goal_input: false,
+                goal_text: String::new(),
+                pipeline_picker: false,
+                pipeline_idx: 0,
+            },
+            search: SearchState {
+                query: String::new(),
+                project_indices: Vec::new(),
+                session_indices: Vec::new(),
+                rg_query: String::new(),
+                rg_matches: HashMap::new(),
+                rg_active: false,
+                rg_rx: None,
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_claude_json_valid() {
+        let json = r#"[
+            {"type":"init","session_id":"sess-1"},
+            {"type":"result","session_id":"sess-1","result":"all done"}
+        ]"#;
+        let (sid, text) = parse_claude_json(json).unwrap();
+        assert_eq!(sid, "sess-1");
+        assert_eq!(text, "all done");
+    }
+
+    #[test]
+    fn test_parse_claude_json_no_result() {
+        let json = r#"[{"type":"init","session_id":"sess-1"}]"#;
+        assert!(parse_claude_json(json).is_err());
+    }
+
+    #[test]
+    fn test_parse_claude_json_invalid() {
+        assert!(parse_claude_json("not json").is_err());
+    }
+
+    #[test]
+    fn test_parse_claude_json_missing_session_id() {
+        let json = r#"[{"type":"result","result":"ok"}]"#;
+        assert!(parse_claude_json(json).is_err());
+    }
+}
+
 /// Parse Claude JSON output array, extract session_id and result text from the "result" event.
 fn parse_claude_json(raw: &str) -> Result<(String, String), String> {
     let arr: Vec<serde_json::Value> =

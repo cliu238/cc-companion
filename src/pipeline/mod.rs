@@ -59,6 +59,68 @@ impl Pipeline {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Instant;
+    use chrono::{Duration, Utc};
+
+    fn make_usage(five_pct: f64, five_mins_left: i64, seven_pct: f64, seven_mins_left: i64) -> UsageStatus {
+        let now = Utc::now();
+        UsageStatus {
+            five_hour_pct: five_pct,
+            five_hour_resets_at: Some(now + Duration::minutes(five_mins_left)),
+            seven_day_pct: seven_pct,
+            seven_day_resets_at: Some(now + Duration::minutes(seven_mins_left)),
+            seven_day_sonnet_pct: None,
+            last_fetched: Instant::now(),
+        }
+    }
+
+    #[test]
+    fn test_pipeline_labels() {
+        assert_eq!(Pipeline::Example.label(), "Example");
+        assert_eq!(Pipeline::SelfEvolve.label(), "Self-Evolve");
+        assert!(!Pipeline::Example.description().is_empty());
+        assert!(!Pipeline::SelfEvolve.description().is_empty());
+    }
+
+    #[test]
+    fn test_should_launch_disabled() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = false;
+        let usage = make_usage(10.0, 5, 10.0, 60);
+        assert!(!sched.should_launch(&usage, false));
+    }
+
+    #[test]
+    fn test_should_launch_triggers() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        // Low usage, 10 mins to 5h reset (within 30min trigger)
+        let usage = make_usage(50.0, 10, 50.0, 60);
+        assert!(sched.should_launch(&usage, false));
+    }
+
+    #[test]
+    fn test_should_launch_too_high_pct() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        // High usage even though close to reset
+        let usage = make_usage(95.0, 10, 96.0, 60);
+        assert!(!sched.should_launch(&usage, false));
+    }
+
+    #[test]
+    fn test_should_launch_too_far() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        // Low usage but far from reset
+        let usage = make_usage(50.0, 200, 50.0, 2000);
+        assert!(!sched.should_launch(&usage, false));
+    }
+}
+
 pub struct Scheduler {
     pub enabled: bool,
     pub pipeline: Pipeline,

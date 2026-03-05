@@ -737,3 +737,104 @@ fn truncate(s: &str, max: usize) -> String {
         clean
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{App, Mode, View};
+    use crate::data::SessionEntry;
+    use ratatui::{Terminal, backend::TestBackend, buffer::Buffer};
+    use std::path::PathBuf;
+
+    /// Scan all rows in the buffer and check if `text` appears in any row.
+    fn buffer_contains(buf: &Buffer, text: &str) -> bool {
+        let area = buf.area;
+        for y in area.y..area.y + area.height {
+            let row: String = (area.x..area.x + area.width)
+                .map(|x| buf[(x, y)].symbol().to_string())
+                .collect();
+            if row.contains(text) {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn test_render_project_select() {
+        let mut app = App::test_default();
+        app.mode = Mode::ProjectSelect;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Select Project"));
+    }
+
+    #[test]
+    fn test_render_chat_empty() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "new session"));
+    }
+
+    #[test]
+    fn test_render_chat_with_messages() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.chat.messages.push(("user".into(), "hello world".into()));
+        app.chat.messages.push(("assistant".into(), "hi there".into()));
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "hello world"));
+        assert!(buffer_contains(buf, "hi there"));
+    }
+
+    #[test]
+    fn test_render_project_list() {
+        let mut app = App::test_default();
+        app.mode = Mode::LogViewer;
+        app.view = View::ProjectList;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Projects"));
+    }
+
+    #[test]
+    fn test_render_session_list() {
+        let mut app = App::test_default();
+        app.mode = Mode::LogViewer;
+        app.view = View::SessionList;
+        app.sessions.push(SessionEntry {
+            session_id: "abc-123".into(),
+            first_prompt: "do stuff".into(),
+            message_count: 5,
+            modified: "2025-01-01 12:00".into(),
+            git_branch: "main".into(),
+            jsonl_path: PathBuf::from("/tmp/fake.jsonl"),
+        });
+        app.search.session_indices = vec![0];
+        app.projects.push(crate::data::Project {
+            name: "test-proj".into(),
+            project_path: "/tmp/test".into(),
+            claude_dir: PathBuf::from("/tmp"),
+            session_count: 1,
+            has_claude_md: false,
+        });
+        app.search.project_indices = vec![0];
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "abc-123"));
+        assert!(buffer_contains(buf, "do stuff"));
+    }
+}

@@ -68,6 +68,52 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, _goal: &str
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_improvements_clean() {
+        let input = r#"[{"name":"fix-errors","description":"Fix error handling"},{"name":"add-tests","description":"Add unit tests"}]"#;
+        let result = parse_improvements(input);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].0, "fix-errors");
+        assert_eq!(result[1].0, "add-tests");
+    }
+
+    #[test]
+    fn test_parse_improvements_surrounded() {
+        let input = "Here are my suggestions:\n[{\"name\":\"refactor\",\"description\":\"Clean up\"}]\nHope that helps!";
+        let result = parse_improvements(input);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "refactor");
+    }
+
+    #[test]
+    fn test_parse_improvements_no_json() {
+        assert!(parse_improvements("no brackets here").is_empty());
+    }
+
+    #[test]
+    fn test_parse_improvements_invalid() {
+        assert!(parse_improvements("[broken json}").is_empty());
+    }
+
+    #[test]
+    fn test_on_complete_overview() {
+        let output = r#"[{"name":"improve-x","description":"Do X better"}]"#;
+        let tasks = on_complete("overview", output, "/tmp/proj", "");
+        assert_eq!(tasks.len(), 1);
+        let t = &tasks[0];
+        assert_eq!(t.name, "improve-x");
+        assert!(t.cwd.contains(".worktrees/improve-x"));
+        assert!(!t.read_only);
+        assert!(!t.resume);
+        assert!(t.setup.is_some());
+        assert!(t.setup.as_ref().unwrap().contains("worktree add"));
+    }
+}
+
 fn parse_improvements(output: &str) -> Vec<(String, String)> {
     // Find JSON array in output (may be surrounded by text)
     let start = output.find('[');

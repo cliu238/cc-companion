@@ -337,6 +337,103 @@ fn extract_text(content: &Value) -> String {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_decode_dir_name_absolute() {
+        assert_eq!(decode_dir_name("-Users-eric-foo"), "/Users/eric/foo");
+    }
+
+    #[test]
+    fn test_decode_dir_name_relative() {
+        assert_eq!(decode_dir_name("some-path"), "some/path");
+    }
+
+    #[test]
+    fn test_extract_text_string() {
+        let val = serde_json::json!("hello world");
+        assert_eq!(extract_text(&val), "hello world");
+    }
+
+    #[test]
+    fn test_extract_text_blocks() {
+        let val = serde_json::json!([
+            {"type": "thinking", "thinking": "hmm"},
+            {"type": "text", "text": "visible"},
+            {"type": "tool_use", "name": "Bash"},
+            {"type": "tool_result", "content": "ok"}
+        ]);
+        let result = extract_text(&val);
+        assert!(result.contains("visible"));
+        assert!(result.contains("[tool: Bash]"));
+        assert!(result.contains("[tool result]"));
+        assert!(!result.contains("hmm"));
+    }
+
+    #[test]
+    fn test_extract_text_empty() {
+        assert_eq!(extract_text(&serde_json::json!(null)), "");
+        assert_eq!(extract_text(&serde_json::json!(42)), "");
+    }
+
+    #[test]
+    fn test_extract_text_preview_truncates() {
+        let long = "a".repeat(300);
+        let val = serde_json::json!(long);
+        let result = extract_text_preview(Some(&val));
+        assert_eq!(result.len(), 200);
+    }
+
+    #[test]
+    fn test_extract_text_preview_none() {
+        assert_eq!(extract_text_preview(None), "");
+    }
+
+    #[test]
+    fn test_format_system_time() {
+        use std::time::{Duration, UNIX_EPOCH};
+        // 2024-01-15 12:00:00 UTC = 1705320000
+        let time = UNIX_EPOCH + Duration::from_secs(1705320000);
+        let result = format_system_time(time);
+        assert_eq!(result, "2024-01-15 12:00");
+    }
+
+    #[test]
+    fn test_load_conversation() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.jsonl");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(f, r#"{{"type":"user","message":{{"role":"user","content":"hi"}}}}"#).unwrap();
+        writeln!(f, r#"{{"type":"assistant","message":{{"role":"assistant","content":"hello"}}}}"#).unwrap();
+        writeln!(f, r#"{{"type":"system","message":{{"role":"system","content":"ignore"}}}}"#).unwrap();
+
+        let msgs = load_conversation(&path);
+        assert_eq!(msgs.len(), 2);
+        assert_eq!(msgs[0].role, "user");
+        assert_eq!(msgs[0].text, "hi");
+        assert_eq!(msgs[1].role, "assistant");
+        assert_eq!(msgs[1].text, "hello");
+    }
+
+    #[test]
+    fn test_scan_session_jsonl() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("abc-123.jsonl");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(f, r#"{{"type":"user","gitBranch":"main","message":{{"role":"user","content":"do stuff"}}}}"#).unwrap();
+        writeln!(f, r#"{{"type":"assistant","message":{{"role":"assistant","content":"done"}}}}"#).unwrap();
+
+        let entry = scan_session_jsonl(&path).unwrap();
+        assert_eq!(entry.session_id, "abc-123");
+        assert_eq!(entry.message_count, 2);
+        assert_eq!(entry.git_branch, "main");
+        assert_eq!(entry.first_prompt, "do stuff");
+    }
+}
+
 pub fn load_claude_md(project: &Project) -> Option<String> {
     // Try project_path first
     if !project.project_path.is_empty() {
