@@ -209,12 +209,6 @@ impl App {
         }
     }
 
-    pub(crate) fn send_overview(&mut self) {
-        self.chat.messages
-            .push(("user".into(), "Generating project overview...".into()));
-        let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(super::OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref(), None, None);
-    }
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat.messages.push(("user".into(), msg.clone()));

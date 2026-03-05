@@ -58,7 +58,6 @@ impl App {
                 self.chat.error = None;
                 self.chat.scroll = 0;
                 self.chat.messages.push(("user".into(), format!("Project: {}", path)));
-                self.send_overview();
                 self.tasks.scheduler = crate::pipeline::Scheduler::new(
                     crate::pipeline::Pipeline::Example, &path, "",
                 );
@@ -84,7 +83,6 @@ impl App {
                     self.chat.messages.clear();
                     self.chat.session_id = None;
                     self.chat.scroll = 0;
-                    self.send_overview();
                 }
             }
             KeyCode::Backspace => { self.path_input.pop(); }

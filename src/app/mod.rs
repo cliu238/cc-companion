@@ -18,8 +18,6 @@ mod search;
 
 const BASE_SYSTEM_PROMPT: &str = include_str!("../../system_prompt.md");
 
-const OVERVIEW_PROMPT: &str = "Read the project files (CLAUDE.md, main source) to understand this project. Give me your assessment of what the project is about, where it stands, what you'd prioritize working on next, and where you think this project could ultimately go long-term.";
-
 #[derive(Clone, Copy)]
 pub enum ChatTone {
     Advisor,
