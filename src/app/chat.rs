@@ -248,6 +248,8 @@ impl App {
                 let _ = Command::new("sh").arg("-c").arg(setup_cmd).output();
             }
             let mut cmd = Command::new("claude");
+            cmd.stdout(std::process::Stdio::piped());
+            cmd.stderr(std::process::Stdio::piped());
             if let Some(dir) = &work_dir {
                 if !dir.is_empty() {
                     cmd.current_dir(dir);
@@ -287,7 +289,14 @@ impl App {
                         Ok(output) => {
                             pid_handle.store(0, Ordering::Relaxed);
                             if output.status.success() {
-                                let raw = String::from_utf8_lossy(&output.stdout);
+                                // claude --output-format json may write to
+                                // stdout or stderr depending on version/context.
+                                let stdout = String::from_utf8_lossy(&output.stdout);
+                                let raw = if stdout.trim_ascii().is_empty() {
+                                    String::from_utf8_lossy(&output.stderr)
+                                } else {
+                                    stdout
+                                };
                                 super::parse_claude_json(&raw)
                             } else {
                                 let stderr = String::from_utf8_lossy(&output.stderr).to_string();
