@@ -108,13 +108,13 @@ fn test_help_bar_shows_keybindings() {
 // Tests are numbered to control execution order (alphabetical).
 // ---------------------------------------------------------------------------
 
-/// Test 1: Select a project → verify Claude is called ("Thinking..." appears)
-/// and Esc cancels the running call. Proves the integration:
-/// project select → send_overview → spawn_claude → API call starts → cancel works.
+/// Test 1: Select a project → verify Claude is called ("Thinking..." appears),
+/// cancel the overview, send a simple chat message, verify Claude responds.
+/// Proves the full round-trip: spawn → API → JSON parse → message rendered.
 #[test]
 #[ignore]
-fn test_ignored_1_claude_spawns_and_cancels() {
-    let mut app = spawn_app_with_timeout(60);
+fn test_ignored_1_claude_round_trip() {
+    let mut app = spawn_app_with_timeout(120);
     app.expect("Select Project").expect("app didn't show project select");
 
     // Press Enter to select the first project — triggers send_overview()
@@ -123,9 +123,24 @@ fn test_ignored_1_claude_spawns_and_cancels() {
     // "Thinking..." proves spawn_claude() was called
     app.expect("Thinking...").expect("Claude was never invoked");
 
-    // Esc cancels the running call
+    // Esc cancels the slow overview
     app.send("\x1b").unwrap();
     app.expect("Cancelled").expect("cancel didn't work");
+
+    // Brief pause for PTY to flush after cancel before sending new keys
+    std::thread::sleep(Duration::from_millis(500));
+
+    // Enter input mode and send a simple message
+    app.send("i").unwrap();
+    // The help bar changes from normal→ChatInput, ratatui emits the diff
+    app.expect("Enter=send").expect("didn't enter input mode");
+    app.send("Say hi in one word\r").unwrap();
+
+    // "Thinking..." proves a new claude call was spawned
+    app.expect("Thinking...").expect("chat claude call never triggered");
+
+    // "cc-companion:" proves the response was parsed and rendered
+    app.expect("cc-companion:").expect("Claude response never appeared");
 
     app.send("q").unwrap();
     app.expect(Eof).unwrap();

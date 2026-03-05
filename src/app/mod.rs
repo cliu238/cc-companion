@@ -321,10 +321,10 @@ impl App {
             }
         }
 
-        // Periodic usage refetch (every 60s)
+        // Periodic usage refetch (every 5 min)
         if !self.usage_fetching {
             let should_fetch = match &self.usage_status {
-                Some(s) => s.last_fetched.elapsed().as_secs() >= 60,
+                Some(s) => s.last_fetched.elapsed().as_secs() >= 300,
                 None => self.usage_rx.is_none(),
             };
             if should_fetch {
