@@ -741,10 +741,12 @@ fn truncate(s: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{App, Mode, View};
-    use crate::data::SessionEntry;
+    use crate::app::{App, ChatTone, InputMode, Mode, UsageStatus, View};
+    use crate::data::{ConversationMessage, SessionEntry};
+    use crate::pipeline::AutoTask;
     use ratatui::{Terminal, backend::TestBackend, buffer::Buffer};
     use std::path::PathBuf;
+    use std::time::Instant;
 
     /// Scan all rows in the buffer and check if `text` appears in any row.
     fn buffer_contains(buf: &Buffer, text: &str) -> bool {
@@ -836,5 +838,173 @@ mod tests {
         let buf = terminal.backend().buffer();
         assert!(buffer_contains(buf, "abc-123"));
         assert!(buffer_contains(buf, "do stuff"));
+    }
+
+    #[test]
+    fn test_render_chat_waiting() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.chat.waiting = true;
+        app.chat.waiting_since = Some(Instant::now());
+        app.chat.messages.push(("user".into(), "generate overview".into()));
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Thinking..."));
+    }
+
+    #[test]
+    fn test_render_chat_error() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.chat.error = Some("rate limit".into());
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Error: rate limit"));
+    }
+
+    #[test]
+    fn test_render_chat_hint() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.chat.hint = Some("Use /help".into());
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Use /help"));
+    }
+
+    #[test]
+    fn test_render_status_bar_usage() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.usage_status = Some(UsageStatus {
+            five_hour_pct: 75.0,
+            five_hour_resets_at: Some(chrono::Utc::now() + chrono::Duration::hours(2)),
+            seven_day_pct: 40.0,
+            seven_day_resets_at: Some(chrono::Utc::now() + chrono::Duration::days(3)),
+            seven_day_sonnet_pct: None,
+            last_fetched: Instant::now(),
+        });
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "75% used"));
+        assert!(buffer_contains(buf, "7d: 40%"));
+    }
+
+    #[test]
+    fn test_render_status_bar_loading() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        // usage_status is None by default
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Loading usage"));
+    }
+
+    #[test]
+    fn test_render_status_bar_gateway_tone() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.gateway_url = Some("http://localhost:8080".into());
+        app.gateway_enabled = true;
+        app.chat.tone = ChatTone::Eric;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "GW:ON"));
+        assert!(buffer_contains(buf, "Tone:eric"));
+    }
+
+    #[test]
+    fn test_render_pipeline_picker() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.tasks.pipeline_picker = true;
+        app.tasks.pipeline_idx = 1;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Select Pipeline"));
+        assert!(buffer_contains(buf, "Example"));
+        assert!(buffer_contains(buf, "Self-Evolve"));
+    }
+
+    #[test]
+    fn test_render_task_panel() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.tasks.show_panel = true;
+        app.tasks.scheduler.done = vec!["Analyze".into()];
+        app.tasks.scheduler.running = Some("Build".into());
+        app.tasks.scheduler.tasks = vec![AutoTask {
+            name: "Deploy".into(),
+            prompt: "deploy it".into(),
+            cwd: "/tmp".into(),
+            read_only: false,
+            resume: false,
+            setup: None,
+        }];
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Analyze"));
+        assert!(buffer_contains(buf, "Build"));
+        assert!(buffer_contains(buf, "Deploy"));
+        assert!(buffer_contains(buf, "Example"));
+    }
+
+    #[test]
+    fn test_render_conversation_view() {
+        let mut app = App::test_default();
+        app.mode = Mode::LogViewer;
+        app.view = View::Conversation;
+        app.conversation = vec![
+            ConversationMessage { role: "user".into(), text: "hello from user".into() },
+            ConversationMessage { role: "assistant".into(), text: "hello from assistant".into() },
+        ];
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "USER"));
+        assert!(buffer_contains(buf, "ASSISTANT"));
+        assert!(buffer_contains(buf, "hello from user"));
+        assert!(buffer_contains(buf, "hello from assistant"));
+    }
+
+    #[test]
+    fn test_render_help_bar_variants() {
+        // Chat input mode
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.input_mode = InputMode::ChatInput;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Enter=send"));
+
+        // LogViewer + RgInput mode
+        let mut app2 = App::test_default();
+        app2.mode = Mode::LogViewer;
+        app2.view = View::SessionList;
+        app2.input_mode = InputMode::RgInput;
+        let backend2 = TestBackend::new(80, 24);
+        let mut terminal2 = Terminal::new(backend2).unwrap();
+        terminal2.draw(|f| draw(f, &mut app2)).unwrap();
+        let buf2 = terminal2.backend().buffer();
+        assert!(buffer_contains(buf2, "rg:"));
     }
 }
