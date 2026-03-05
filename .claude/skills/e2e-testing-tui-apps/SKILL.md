@@ -129,6 +129,51 @@ fn test_keystroke_flow() {
 }
 ```
 
+### 7. Ratatui differential rendering breaks expect() matching
+
+Ratatui only redraws cells that changed between frames. If the new text occupies the same terminal region as old text, `expect()` may never see it in the PTY stream — the bytes are simply not emitted.
+
+**Example:** Help bar changes from `"i=type x=task..."` to `"Enter=send Alt+Enter=newline..."`. If both strings render at the same screen position, ratatui may emit only the **changed characters**, not the full new string.
+
+**Fix:** Match on a substring that is **unique to the new state AND not a substring of the old state**:
+
+```rust
+// BAD: "Enter=send" might not appear in PTY stream due to diff rendering
+app.expect("Enter=send").unwrap();
+
+// GOOD: "Alt+Enter" is unique to ChatInput help bar and wasn't in old text
+app.expect("Alt+Enter").unwrap();
+```
+
+**General rule:** After a mode change, `expect()` a string that:
+1. Only appears in the new mode's rendering
+2. Was NOT present (even partially) in the previous frame
+3. Occupies screen cells that previously had different content
+
+### 8. Add sleep between mode transitions
+
+After `expect()` confirms a screen state, the app may still be processing. Add a short delay before sending the next keystroke:
+
+```rust
+app.expect("i=type").unwrap();           // Chat mode rendered
+std::thread::sleep(Duration::from_secs(1)); // Let app settle
+app.send("i").unwrap();                  // Now enter input mode
+```
+
+### 9. Use step!() timing macro for debugging slow tests
+
+Add timestamps to identify which step is slow or stuck:
+
+```rust
+macro_rules! step {
+    ($start:expr, $msg:expr) => {
+        eprintln!("[{:>6.1}s] {}", $start.elapsed().as_secs_f64(), $msg);
+    };
+}
+
+// Run with: cargo test -- --ignored --test-threads=1 --nocapture
+```
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -139,3 +184,5 @@ fn test_keystroke_flow() {
 | Running ignored tests in CI | Use `#[ignore]` + `--ignored` for API tests |
 | Parallel API test runs | Use `--test-threads=1` to avoid rate limits |
 | Testing claude from Claude Code Bash | Write ignored tests, run from normal terminal |
+| `expect()` for text in same screen region | Use unique substring not in previous frame |
+| Sending keys immediately after `expect()` | Add `sleep()` between mode transitions |

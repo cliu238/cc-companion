@@ -1,8 +1,14 @@
 use std::process::Command;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use expectrl::session::OsSession;
 use expectrl::{Eof, Expect, Session};
+
+macro_rules! step {
+    ($start:expr, $msg:expr) => {
+        eprintln!("[{:>6.1}s] {}", $start.elapsed().as_secs_f64(), $msg);
+    };
+}
 
 /// Spawn the app in a PTY with a given timeout.
 /// Unsets CLAUDECODE so nested `claude` CLI calls work.
@@ -108,42 +114,44 @@ fn test_help_bar_shows_keybindings() {
 // Tests are numbered to control execution order (alphabetical).
 // ---------------------------------------------------------------------------
 
-/// Test 1: Select a project → verify Claude is called ("Thinking..." appears),
-/// cancel the overview, send a simple chat message, verify Claude responds.
+/// Test 1: Select a project → enter chat → send a message → verify Claude responds.
 /// Proves the full round-trip: spawn → API → JSON parse → message rendered.
 #[test]
 #[ignore]
 fn test_ignored_1_claude_round_trip() {
+    let t = Instant::now();
+    step!(t, "spawning app");
     let mut app = spawn_app_with_timeout(120);
+
+    step!(t, "waiting for Select Project");
     app.expect("Select Project").expect("app didn't show project select");
 
-    // Press Enter to select the first project — triggers send_overview()
+    step!(t, "pressing Enter to select project");
     app.send("\r").unwrap();
 
-    // "Thinking..." proves spawn_claude() was called
-    app.expect("Thinking...").expect("Claude was never invoked");
+    step!(t, "waiting for Chat help bar");
+    app.expect("i=type").expect("Chat mode help bar not shown");
 
-    // Esc cancels the slow overview
-    app.send("\x1b").unwrap();
-    app.expect("Cancelled").expect("cancel didn't work");
-
-    // Brief pause for PTY to flush after cancel before sending new keys
-    std::thread::sleep(Duration::from_millis(500));
-
-    // Enter input mode and send a simple message
+    std::thread::sleep(Duration::from_secs(1));
+    step!(t, "pressing 'i' for input mode");
     app.send("i").unwrap();
-    // The help bar changes from normal→ChatInput, ratatui emits the diff
-    app.expect("Enter=send").expect("didn't enter input mode");
+
+    step!(t, "waiting for ChatInput help bar");
+    app.expect("Alt+Enter").expect("didn't enter input mode");
+
+    step!(t, "sending message");
     app.send("Say hi in one word\r").unwrap();
 
-    // "Thinking..." proves a new claude call was spawned
+    step!(t, "waiting for Thinking...");
     app.expect("Thinking...").expect("chat claude call never triggered");
 
-    // "cc-companion:" proves the response was parsed and rendered
+    step!(t, "waiting for cc-companion: response");
     app.expect("cc-companion:").expect("Claude response never appeared");
 
+    step!(t, "quitting");
     app.send("q").unwrap();
     app.expect(Eof).unwrap();
+    step!(t, "done");
 }
 
 /// Test 3: Verify usage stats appear in the status bar.

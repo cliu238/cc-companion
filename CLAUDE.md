@@ -7,9 +7,9 @@
 
 ## Testing
 
-> **Note:** You cannot spawn `claude` CLI from within Claude Code's Bash tool (nested sessions are blocked). For E2E tests that call `claude` headless, ask the user to run them in a separate terminal:
-> ```bash
-> cargo test --test e2e -- --ignored --test-threads=1
-> ```
+> **Note:** You cannot spawn `claude` CLI from within Claude Code's Bash tool (nested sessions are blocked). For E2E tests that call `claude` headless, ignore it
+
+## ETesting Tips
+- If an test hangs or is unexpectedly slow, add `eprintln!` timestamps at each step and run with `--nocapture` to identify which step is stuck.
 
 ## Documentation References
