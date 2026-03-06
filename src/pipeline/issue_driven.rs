@@ -77,6 +77,9 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
             name: VERIFY.into(),
             prompt: "/superpowers:verification-before-completion\n\n\
                      - Run the full test suite via `/test` skills, including e2e tests and all new tests added.\n\n\
+                     - If any tests cannot be run (e.g. #[ignore] tests requiring API keys or \
+                     manual terminal interaction), list them clearly with the exact command \
+                     the user should run manually. Do NOT block the pipeline for these.\n\n\
                      - Update the `/test` skill only if: new test types were introduced, \
                      existing commands no longer work, or coverage gaps were discovered.".into(),
             cwd: project_cwd.to_string(),
@@ -89,6 +92,7 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
             name: FINISH.into(),
             prompt: "/superpowers:finishing-a-development-branch\n\n\
                      - Confirm all checks pass before proceeding.\n\
+                     - Merge the pull request via `gh pr merge` (prefer squash merge).\n\
                      - Remove the git worktree.\n\
                      - Close the GitHub issue.".into(),
             cwd: project_cwd.to_string(),
