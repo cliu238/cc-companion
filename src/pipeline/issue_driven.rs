@@ -27,9 +27,9 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
     match task_name {
         LOAD_SKILLS => vec![AutoTask {
             name: RUN_TESTS.into(),
-            prompt: "Run `/test` skill to run all tests. If the `/test` skill is missing, \
-                     create a `/test` skill that auto-detects the project's test framework. \
-                     The skill name MUST be `test`.".into(),
+            prompt: "Use the Skill tool to invoke the `test` skill to run all tests. \
+                     If the `test` skill is missing, create it at \
+                     .claude/skills/test/SKILL.md that auto-detects the project's test framework.".into(),
             cwd: project_cwd.to_string(),
             read_only: false,
             resume: false,
@@ -55,14 +55,14 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
                 prompt: format!(
                     "/superpowers:verification-before-completion\n\n\
                      - Use `superpowers:using-git-worktrees` to fetch the next GitHub issue (gh cli).{label_filter}\n\n\
-                     - Use `superpowers:test-driven-development` skill and `/test` skills to fix it \
+                     - Use `superpowers:test-driven-development` skill and the `test` skill to fix it \
                      following strict red->green->refactor TDD.\n\n\
                      - Unit tests alone are NOT sufficient for user-visible changes. \
                      Choose test level based on what changed: \
                      logic/data → unit tests, UI rendering → TestBackend render tests, \
                      user interaction flows → PTY E2E tests (expectrl). \
                      At minimum, add one E2E test proving the feature works end-to-end.\n\n\
-                     - Run `/test` to verify all tests pass.\n\n\
+                     - Use the Skill tool to invoke the `test` skill to verify all tests pass.\n\n\
                      - Submit the PR and use `superpowers:requesting-code-review` to request a review.\n\n\
                      Previous test output:\n{output}"
                 ),
@@ -76,11 +76,11 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
         IMPLEMENT => vec![AutoTask {
             name: VERIFY.into(),
             prompt: "/superpowers:verification-before-completion\n\n\
-                     - Run the full test suite via `/test` skills, including e2e tests and all new tests added.\n\n\
+                     - Use the Skill tool to invoke the `test` skill to run the full test suite, including e2e tests and all new tests added.\n\n\
                      - If any tests cannot be run (e.g. #[ignore] tests requiring API keys or \
                      manual terminal interaction), list them clearly with the exact command \
                      the user should run manually. Do NOT block the pipeline for these.\n\n\
-                     - Update the `/test` skill only if: new test types were introduced, \
+                     - Update the `test` skill only if: new test types were introduced, \
                      existing commands no longer work, or coverage gaps were discovered.".into(),
             cwd: project_cwd.to_string(),
             read_only: false,
