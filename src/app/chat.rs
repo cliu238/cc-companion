@@ -1,15 +1,48 @@
 use std::process::Command;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+use crate::pipeline::Pipeline;
 
 use super::{App, InputMode, BASE_SYSTEM_PROMPT};
 
 impl App {
     pub(crate) fn handle_chat_normal_key(&mut self, key: KeyEvent) {
         self.chat.hint = None;
+
+        // Pipeline picker popup intercepts keys when visible
+        if self.tasks.pipeline_picker {
+            let pipelines = Pipeline::all();
+            match key.code {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    self.tasks.pipeline_idx = (self.tasks.pipeline_idx + 1).min(pipelines.len() - 1);
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    self.tasks.pipeline_idx = self.tasks.pipeline_idx.saturating_sub(1);
+                }
+                KeyCode::Enter => {
+                    let selected = pipelines[self.tasks.pipeline_idx];
+                    self.tasks.pipeline_picker = false;
+                    if selected == Pipeline::IssueDriven {
+                        self.tasks.goal_input = true;
+                        self.tasks.goal_text.clear();
+                        self.input_mode = InputMode::TaskInput;
+                    } else {
+                        let cwd = self.cwd.display().to_string();
+                        self.tasks.scheduler.switch_pipeline(selected, &cwd, "");
+                        self.tasks.selected_idx = 0;
+                    }
+                }
+                KeyCode::Esc => { self.tasks.pipeline_picker = false; }
+                _ => {}
+            }
+            return;
+        }
 
         // Task list popup intercepts keys when visible
         if self.tasks.show_panel {
@@ -33,7 +66,7 @@ impl App {
                 KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     self.tasks.scroll = self.tasks.scroll.saturating_sub(10);
                 }
-                KeyCode::Char('D') => {
+                KeyCode::Char('D') | KeyCode::Char('d') => {
                     // Only delete pending items (past done + running sections)
                     let pending_start = done_len + running_offset;
                     if self.tasks.selected_idx >= pending_start {
@@ -55,11 +88,19 @@ impl App {
                                 let task = self.tasks.scheduler.run_task(pending_idx);
                                 self.chat.messages
                                     .push(("user".into(), format!("[Manual] {}", task.name)));
-                                let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-                                self.spawn_claude(task.prompt, true, true, cwd.as_deref(), None);
+                                let cwd = if task.cwd.is_empty() {
+                                    if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) }
+                                } else {
+                                    Some(task.cwd.clone())
+                                };
+                                self.spawn_claude(task.prompt, task.resume, task.read_only, cwd.as_deref(), None, task.setup);
                             }
                         }
                     }
+                }
+                KeyCode::Char('P') | KeyCode::Char('p') => {
+                    self.tasks.pipeline_picker = true;
+                    self.tasks.pipeline_idx = 0;
                 }
                 KeyCode::Esc | KeyCode::Char('X') => self.tasks.show_panel = false,
                 _ => {}
@@ -68,6 +109,11 @@ impl App {
         }
 
         match key.code {
+            KeyCode::Esc => {
+                if self.chat.waiting {
+                    self.cancel_running();
+                }
+            }
             KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Char('i') | KeyCode::Enter => {
                 if !self.chat.waiting {
@@ -163,26 +209,21 @@ impl App {
         }
     }
 
-    pub(crate) fn send_overview(&mut self) {
-        self.chat.messages
-            .push(("user".into(), "Generating project overview...".into()));
-        let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(super::OVERVIEW_PROMPT.to_string(), false, false, cwd.as_deref(), None);
-    }
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat.messages.push(("user".into(), msg.clone()));
         let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(msg, true, true, cwd.as_deref(), None);
+        self.spawn_claude(msg, true, true, cwd.as_deref(), None, None);
     }
 
     /// Shared helper: spawn a background `claude` CLI call.
     /// `resume` — attach to existing session; `read_only` — disallow write tools.
     /// `cwd` — optional working directory for the claude process.
-    pub(crate) fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool, cwd: Option<&str>, model: Option<&str>) {
+    pub(crate) fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool, cwd: Option<&str>, model: Option<&str>, setup: Option<String>) {
         self.chat.error = None;
         self.chat.waiting = true;
         self.chat.waiting_since = Some(Instant::now());
+        self.chat.child_pid.store(0, Ordering::Relaxed);
 
         let session_id = if resume { self.chat.session_id.clone() } else { None };
         let gw_enabled = self.gateway_enabled;
@@ -191,12 +232,18 @@ impl App {
         let system_prompt = format!("{}{}", BASE_SYSTEM_PROMPT, self.chat.tone.suffix());
         let work_dir = cwd.map(|s| s.to_string());
         let model_flag = model.map(|s| s.to_string());
+        let pid_handle = Arc::clone(&self.chat.child_pid);
 
         let (tx, rx) = mpsc::channel();
         self.chat.response_rx = Some(rx);
 
         thread::spawn(move || {
+            if let Some(setup_cmd) = &setup {
+                let _ = Command::new("sh").arg("-c").arg(setup_cmd).output();
+            }
             let mut cmd = Command::new("claude");
+            cmd.stdout(std::process::Stdio::piped());
+            cmd.stderr(std::process::Stdio::piped());
             if let Some(dir) = &work_dir {
                 if !dir.is_empty() {
                     cmd.current_dir(dir);
@@ -229,24 +276,58 @@ impl App {
                 cmd.arg("--resume").arg(id);
             }
 
-            let result = match cmd.output() {
-                Ok(output) => {
-                    if output.status.success() {
-                        let raw = String::from_utf8_lossy(&output.stdout);
-                        super::parse_claude_json(&raw)
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                        Err(if stderr.is_empty() {
-                            "claude exited with error".into()
-                        } else {
-                            stderr
-                        })
+            let result = match cmd.spawn() {
+                Ok(child) => {
+                    pid_handle.store(child.id(), Ordering::Relaxed);
+                    match child.wait_with_output() {
+                        Ok(output) => {
+                            pid_handle.store(0, Ordering::Relaxed);
+                            if output.status.success() {
+                                // claude --output-format json may write to
+                                // stdout or stderr depending on version/context.
+                                let stdout = String::from_utf8_lossy(&output.stdout);
+                                let raw = if stdout.trim_ascii().is_empty() {
+                                    String::from_utf8_lossy(&output.stderr)
+                                } else {
+                                    stdout
+                                };
+                                super::parse_claude_json(&raw)
+                            } else {
+                                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                                Err(if stderr.is_empty() {
+                                    "claude exited with error".into()
+                                } else {
+                                    stderr
+                                })
+                            }
+                        }
+                        Err(e) => {
+                            pid_handle.store(0, Ordering::Relaxed);
+                            Err(format!("Failed waiting for claude: {}", e))
+                        }
                     }
                 }
                 Err(e) => Err(format!("Failed to run claude: {}", e)),
             };
             let _ = tx.send(result);
         });
+    }
+
+    /// Cancel the currently running claude process.
+    pub(crate) fn cancel_running(&mut self) {
+        let pid = self.chat.child_pid.swap(0, Ordering::Relaxed);
+        if pid != 0 {
+            // Kill the process and its children
+            let _ = Command::new("kill").arg(pid.to_string()).output();
+        }
+        self.chat.waiting = false;
+        self.chat.waiting_since = None;
+        self.chat.response_rx = None;
+        self.chat.messages.push(("system".into(), "[Cancelled]".into()));
+        self.chat.scroll = u16::MAX;
+        if self.tasks.scheduler.running.is_some() {
+            self.tasks.scheduler.running = None;
+        }
     }
 
     pub fn handle_paste(&mut self, text: String) {

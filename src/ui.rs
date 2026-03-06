@@ -88,7 +88,8 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         Mode::Chat => match app.input_mode {
             InputMode::ChatInput => "Enter=send Alt+Enter=newline Ctrl+C=copy Esc=cancel | Shift+Tab=logs".to_string(),
             InputMode::TaskInput => "Enter=run Esc=cancel".to_string(),
-            _ if app.tasks.show_panel => "j/k=select Enter=run D=delete Ctrl+d/u=scroll Esc=close".to_string(),
+            _ if app.tasks.pipeline_picker => "j/k=select Enter=choose Esc=cancel".to_string(),
+            _ if app.tasks.show_panel => "j/k=select Enter=run d=delete p=pipeline Ctrl+d/u=scroll Esc=close".to_string(),
             _ => "i=type x=task X=tasks j/k=scroll n=new p=proj t=tone g=gw a=auto q=quit | Shift+Tab=logs".to_string(),
         },
         Mode::LogViewer => match (&app.view, &app.input_mode) {
@@ -214,12 +215,18 @@ fn draw_chat(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
-    // Task popups (rendered over chat)
+    // Task popups (rendered over chat, last = on top)
     if app.tasks.show_input {
         draw_task_input_popup(f, app, area);
     }
     if app.tasks.show_panel {
         draw_task_list_popup(f, app, area);
+    }
+    if app.tasks.goal_input {
+        draw_goal_input_popup(f, app, area);
+    }
+    if app.tasks.pipeline_picker {
+        draw_pipeline_picker(f, app, area);
     }
 }
 
@@ -440,6 +447,12 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     };
     let task_len: usize = task_spans.iter().map(|s| s.content.len()).sum();
 
+    let pipe_spans: Vec<Span> = {
+        let label = format!(" P:{}", app.tasks.scheduler.pipeline.label());
+        vec![Span::styled(label, Style::default().fg(Color::Cyan))]
+    };
+    let pipe_len: usize = pipe_spans.iter().map(|s| s.content.len()).sum();
+
     let auto_spans: Vec<Span> = {
         let (label, color) = if app.tasks.scheduler.enabled {
             (" Auto:ON", Color::Green)
@@ -452,13 +465,14 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
 
     let Some(usage) = &app.usage_status else {
         let left = " Loading usage...";
-        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + auto_len + session_part.len());
+        let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + pipe_len + auto_len + session_part.len());
         let mut spans = vec![
             Span::styled(left, Style::default().fg(Color::DarkGray)),
         ];
         spans.extend(gw_spans);
         spans.extend(tone_spans);
         spans.extend(task_spans);
+        spans.extend(pipe_spans);
         spans.extend(auto_spans);
         spans.push(Span::raw(" ".repeat(pad)));
         spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
@@ -517,13 +531,14 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
         sonnet_part,
     );
 
-    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + auto_len + session_part.len());
+    let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + pipe_len + auto_len + session_part.len());
     let mut spans = vec![
         Span::styled(left, Style::default().fg(color)),
     ];
     spans.extend(gw_spans);
     spans.extend(tone_spans);
     spans.extend(task_spans);
+    spans.extend(pipe_spans);
     spans.extend(auto_spans);
     spans.push(Span::raw(" ".repeat(pad)));
     spans.push(Span::styled(session_part, Style::default().fg(Color::DarkGray)));
@@ -548,6 +563,67 @@ fn draw_task_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) 
     let cursor_x = popup_area.x + UnicodeWidthStr::width(app.tasks.input.as_str()) as u16 + 1;
     let cursor_y = popup_area.y + 1;
     f.set_cursor_position((cursor_x, cursor_y));
+}
+
+fn draw_goal_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    let popup_w = (area.width * 60 / 100).max(30);
+    let popup_h = 3;
+    let x = area.x + (area.width.saturating_sub(popup_w)) / 2;
+    let y = area.y + (area.height.saturating_sub(popup_h)) / 2;
+    let popup_area = ratatui::layout::Rect::new(x, y, popup_w, popup_h);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(" Issue label filter (empty=all issues) ");
+    let input = Paragraph::new(app.tasks.goal_text.as_str()).block(block);
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+    f.render_widget(input, popup_area);
+
+    let cursor_x = popup_area.x + UnicodeWidthStr::width(app.tasks.goal_text.as_str()) as u16 + 1;
+    let cursor_y = popup_area.y + 1;
+    f.set_cursor_position((cursor_x, cursor_y));
+}
+
+fn draw_pipeline_picker(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    let pipelines = crate::pipeline::Pipeline::all();
+    // 2 lines per pipeline (name + description) + 1 blank between + border
+    let content_h = pipelines.len() as u16 * 3;
+    let popup_h = content_h + 2; // borders
+    let popup_w = 70u16.min(area.width.saturating_sub(4)).max(1);
+    let x = area.x + (area.width.saturating_sub(popup_w)) / 2;
+    let y = area.y + (area.height.saturating_sub(popup_h)) / 2;
+    let popup_area = ratatui::layout::Rect::new(x, y, popup_w, popup_h);
+
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+
+    let mut lines: Vec<Line> = Vec::new();
+    for (i, p) in pipelines.iter().enumerate() {
+        let marker = if i == app.tasks.pipeline_idx { " > " } else { "   " };
+        let name_style = if i == app.tasks.pipeline_idx {
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        lines.push(Line::from(vec![
+            Span::styled(marker, name_style),
+            Span::styled(p.label(), name_style),
+        ]));
+        lines.push(Line::from(Span::styled(
+            format!("   {}", p.description()),
+            Style::default().fg(Color::DarkGray),
+        )));
+        if i + 1 < pipelines.len() {
+            lines.push(Line::from(""));
+        }
+    }
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(" Select Pipeline ");
+    let paragraph = Paragraph::new(lines).block(block);
+    f.render_widget(paragraph, popup_area);
 }
 
 fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
@@ -601,7 +677,8 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let done_count = app.tasks.scheduler.done.len();
     let running_count: usize = if app.tasks.scheduler.running.is_some() { 1 } else { 0 };
     let pending_count = app.tasks.scheduler.tasks.len();
-    let list_title = format!(" {done_count} done / {running_count} running / {pending_count} pending ");
+    let pipe_label = app.tasks.scheduler.pipeline.label();
+    let list_title = format!(" {pipe_label} | {done_count} done / {running_count} running / {pending_count} pending ");
     let list = List::new(items)
         .block(
             Block::default()
@@ -632,12 +709,19 @@ fn draw_task_list_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         "No scheduled tasks".to_string()
     };
 
+    let output_title = if app.tasks.selected_idx < done_count {
+        " Output "
+    } else if running_count > 0 && app.tasks.selected_idx == done_count {
+        " Running "
+    } else {
+        " Prompt "
+    };
     let output = Paragraph::new(output_text)
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::DarkGray))
-                .title(" Output "),
+                .title(output_title),
         )
         .wrap(Wrap { trim: false })
         .scroll((app.tasks.scroll, 0));
@@ -651,5 +735,276 @@ fn truncate(s: &str, max: usize) -> String {
         format!("{}...", truncated)
     } else {
         clean
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{App, ChatTone, InputMode, Mode, UsageStatus, View};
+    use crate::data::{ConversationMessage, SessionEntry};
+    use crate::pipeline::AutoTask;
+    use ratatui::{Terminal, backend::TestBackend, buffer::Buffer};
+    use std::path::PathBuf;
+    use std::time::Instant;
+
+    /// Scan all rows in the buffer and check if `text` appears in any row.
+    fn buffer_contains(buf: &Buffer, text: &str) -> bool {
+        let area = buf.area;
+        for y in area.y..area.y + area.height {
+            let row: String = (area.x..area.x + area.width)
+                .map(|x| buf[(x, y)].symbol().to_string())
+                .collect();
+            if row.contains(text) {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn test_render_project_select() {
+        let mut app = App::test_default();
+        app.mode = Mode::ProjectSelect;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Select Project"));
+    }
+
+    #[test]
+    fn test_render_chat_empty() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "new session"));
+    }
+
+    #[test]
+    fn test_render_chat_with_messages() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.chat.messages.push(("user".into(), "hello world".into()));
+        app.chat.messages.push(("assistant".into(), "hi there".into()));
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "hello world"));
+        assert!(buffer_contains(buf, "hi there"));
+    }
+
+    #[test]
+    fn test_render_project_list() {
+        let mut app = App::test_default();
+        app.mode = Mode::LogViewer;
+        app.view = View::ProjectList;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Projects"));
+    }
+
+    #[test]
+    fn test_render_session_list() {
+        let mut app = App::test_default();
+        app.mode = Mode::LogViewer;
+        app.view = View::SessionList;
+        app.sessions.push(SessionEntry {
+            session_id: "abc-123".into(),
+            first_prompt: "do stuff".into(),
+            message_count: 5,
+            modified: "2025-01-01 12:00".into(),
+            git_branch: "main".into(),
+            jsonl_path: PathBuf::from("/tmp/fake.jsonl"),
+        });
+        app.search.session_indices = vec![0];
+        app.projects.push(crate::data::Project {
+            name: "test-proj".into(),
+            project_path: "/tmp/test".into(),
+            claude_dir: PathBuf::from("/tmp"),
+            session_count: 1,
+            has_claude_md: false,
+        });
+        app.search.project_indices = vec![0];
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "abc-123"));
+        assert!(buffer_contains(buf, "do stuff"));
+    }
+
+    #[test]
+    fn test_render_chat_waiting() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.chat.waiting = true;
+        app.chat.waiting_since = Some(Instant::now());
+        app.chat.messages.push(("user".into(), "generate overview".into()));
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Thinking..."));
+    }
+
+    #[test]
+    fn test_render_chat_error() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.chat.error = Some("rate limit".into());
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Error: rate limit"));
+    }
+
+    #[test]
+    fn test_render_chat_hint() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.chat.hint = Some("Use /help".into());
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Use /help"));
+    }
+
+    #[test]
+    fn test_render_status_bar_usage() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.usage_status = Some(UsageStatus {
+            five_hour_pct: 75.0,
+            five_hour_resets_at: Some(chrono::Utc::now() + chrono::Duration::hours(2)),
+            seven_day_pct: 40.0,
+            seven_day_resets_at: Some(chrono::Utc::now() + chrono::Duration::days(3)),
+            seven_day_sonnet_pct: None,
+            last_fetched: Instant::now(),
+        });
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "75% used"));
+        assert!(buffer_contains(buf, "7d: 40%"));
+    }
+
+    #[test]
+    fn test_render_status_bar_loading() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        // usage_status is None by default
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Loading usage"));
+    }
+
+    #[test]
+    fn test_render_status_bar_gateway_tone() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.gateway_url = Some("http://localhost:8080".into());
+        app.gateway_enabled = true;
+        app.chat.tone = ChatTone::Eric;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "GW:ON"));
+        assert!(buffer_contains(buf, "Tone:eric"));
+    }
+
+    #[test]
+    fn test_render_pipeline_picker() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.tasks.pipeline_picker = true;
+        app.tasks.pipeline_idx = 1;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Select Pipeline"));
+        assert!(buffer_contains(buf, "Example"));
+        assert!(buffer_contains(buf, "Issue-Driven"));
+    }
+
+    #[test]
+    fn test_render_task_panel() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.tasks.show_panel = true;
+        app.tasks.scheduler.done = vec!["Analyze".into()];
+        app.tasks.scheduler.running = Some("Build".into());
+        app.tasks.scheduler.tasks = vec![AutoTask {
+            name: "Deploy".into(),
+            prompt: "deploy it".into(),
+            cwd: "/tmp".into(),
+            read_only: false,
+            resume: false,
+            setup: None,
+        }];
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Analyze"));
+        assert!(buffer_contains(buf, "Build"));
+        assert!(buffer_contains(buf, "Deploy"));
+        assert!(buffer_contains(buf, "Example"));
+    }
+
+    #[test]
+    fn test_render_conversation_view() {
+        let mut app = App::test_default();
+        app.mode = Mode::LogViewer;
+        app.view = View::Conversation;
+        app.conversation = vec![
+            ConversationMessage { role: "user".into(), text: "hello from user".into() },
+            ConversationMessage { role: "assistant".into(), text: "hello from assistant".into() },
+        ];
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "USER"));
+        assert!(buffer_contains(buf, "ASSISTANT"));
+        assert!(buffer_contains(buf, "hello from user"));
+        assert!(buffer_contains(buf, "hello from assistant"));
+    }
+
+    #[test]
+    fn test_render_help_bar_variants() {
+        // Chat input mode
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.input_mode = InputMode::ChatInput;
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Enter=send"));
+
+        // LogViewer + RgInput mode
+        let mut app2 = App::test_default();
+        app2.mode = Mode::LogViewer;
+        app2.view = View::SessionList;
+        app2.input_mode = InputMode::RgInput;
+        let backend2 = TestBackend::new(80, 24);
+        let mut terminal2 = Terminal::new(backend2).unwrap();
+        terminal2.draw(|f| draw(f, &mut app2)).unwrap();
+        let buf2 = terminal2.backend().buffer();
+        assert!(buffer_contains(buf2, "rg:"));
     }
 }

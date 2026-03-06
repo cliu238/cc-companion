@@ -49,18 +49,18 @@ impl App {
 
     fn select_project_and_enter_chat(&mut self) {
         if let Some(&idx) = self.search.project_indices.get(self.project_idx) {
-            let path = &self.projects[idx].project_path;
+            let path = self.projects[idx].project_path.clone();
             if !path.is_empty() {
-                self.cwd = PathBuf::from(path);
+                self.cwd = PathBuf::from(&path);
                 self.mode = Mode::Chat;
                 self.chat.messages.clear();
                 self.chat.session_id = None;
                 self.chat.error = None;
                 self.chat.scroll = 0;
                 self.chat.messages.push(("user".into(), format!("Project: {}", path)));
-                self.send_overview();
-                self.tasks.scheduler = crate::scheduler::Scheduler::new();
-                self.tasks.scheduler.enabled = true;
+                self.tasks.scheduler = crate::pipeline::Scheduler::new(
+                    crate::pipeline::Pipeline::Example, &path, "",
+                );
                 self.search.query.clear();
                 self.refilter();
             }
@@ -83,7 +83,6 @@ impl App {
                     self.chat.messages.clear();
                     self.chat.session_id = None;
                     self.chat.scroll = 0;
-                    self.send_overview();
                 }
             }
             KeyCode::Backspace => { self.path_input.pop(); }
@@ -93,6 +92,32 @@ impl App {
     }
 
     pub(crate) fn handle_task_input_key(&mut self, key: KeyEvent) {
+        // Goal input mode for IssueDriven pipeline (goal = label filter)
+        if self.tasks.goal_input {
+            match key.code {
+                KeyCode::Esc => {
+                    self.tasks.goal_input = false;
+                    self.tasks.goal_text.clear();
+                    self.input_mode = InputMode::Normal;
+                }
+                KeyCode::Enter => {
+                    let goal = self.tasks.goal_text.trim().to_string();
+                    let cwd = self.cwd.display().to_string();
+                    self.tasks.scheduler.switch_pipeline(
+                        crate::pipeline::Pipeline::IssueDriven, &cwd, &goal,
+                    );
+                    self.tasks.selected_idx = 0;
+                    self.tasks.goal_input = false;
+                    self.tasks.goal_text.clear();
+                    self.input_mode = InputMode::Normal;
+                }
+                KeyCode::Backspace => { self.tasks.goal_text.pop(); }
+                KeyCode::Char(c) => { self.tasks.goal_text.push(c); }
+                _ => {}
+            }
+            return;
+        }
+
         match key.code {
             KeyCode::Esc => {
                 self.tasks.show_input = false;

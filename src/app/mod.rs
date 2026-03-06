@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicU32;
 use std::sync::mpsc::{self, Receiver};
+use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
 
@@ -8,15 +10,13 @@ use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::data::{self, ConversationMessage, Project, SessionEntry};
-use crate::scheduler::Scheduler;
+use crate::pipeline::{Pipeline, Scheduler};
 
 mod chat;
 mod nav;
 mod search;
 
 const BASE_SYSTEM_PROMPT: &str = include_str!("../../system_prompt.md");
-
-const OVERVIEW_PROMPT: &str = "Read the project files (CLAUDE.md, main source) to understand this project. Give me your assessment of what the project is about, where it stands, what you'd prioritize working on next, and where you think this project could ultimately go long-term.";
 
 #[derive(Clone, Copy)]
 pub enum ChatTone {
@@ -109,6 +109,8 @@ pub struct ChatState {
     pub tone: ChatTone,
     pub hint: Option<String>,
     pub new_msg_at: Option<Instant>,
+    /// PID of running claude process (0 = none), shared with spawned thread.
+    pub(crate) child_pid: Arc<AtomicU32>,
 }
 
 pub struct TaskState {
@@ -119,6 +121,10 @@ pub struct TaskState {
     pub selected_idx: usize,
     pub scroll: u16,
     pub scheduler: Scheduler,
+    pub goal_input: bool,
+    pub goal_text: String,
+    pub pipeline_picker: bool,
+    pub pipeline_idx: usize,
 }
 
 pub struct SearchState {
@@ -208,6 +214,7 @@ impl App {
                 tone: ChatTone::Advisor,
                 hint: None,
                 new_msg_at: None,
+                child_pid: Arc::new(AtomicU32::new(0)),
             },
             tasks: TaskState {
                 items: Vec::new(),
@@ -216,7 +223,11 @@ impl App {
                 show_panel: false,
                 selected_idx: 0,
                 scroll: 0,
-                scheduler: Scheduler::new(),
+                scheduler: Scheduler::new(Pipeline::Example, "", ""),
+                goal_input: false,
+                goal_text: String::new(),
+                pipeline_picker: false,
+                pipeline_idx: 0,
             },
             search: SearchState {
                 query: String::new(),
@@ -249,7 +260,14 @@ impl App {
                 self.chat.waiting_since = None;
                 self.chat.response_rx = None;
                 if self.tasks.scheduler.running.is_some() {
-                    self.tasks.scheduler.complete_running();
+                    let output = self.chat.messages.last()
+                        .map(|(_, t)| t.as_str()).unwrap_or("");
+                    let cwd = self.cwd.display().to_string();
+                    let keep_session = self.tasks.scheduler.running_resume;
+                    self.tasks.scheduler.complete_running(output, &cwd);
+                    if !keep_session {
+                        // Non-resuming tasks are independent; keep existing session_id
+                    }
                 }
             }
         }
@@ -301,10 +319,10 @@ impl App {
             }
         }
 
-        // Periodic usage refetch (every 60s)
+        // Periodic usage refetch (every 5 min)
         if !self.usage_fetching {
             let should_fetch = match &self.usage_status {
-                Some(s) => s.last_fetched.elapsed().as_secs() >= 60,
+                Some(s) => s.last_fetched.elapsed().as_secs() >= 300,
                 None => self.usage_rx.is_none(),
             };
             if should_fetch {
@@ -314,12 +332,16 @@ impl App {
 
         // Auto-task scheduler
         if let Some(ref usage) = self.usage_status {
-            if self.tasks.scheduler.should_launch(usage, self.chat.waiting) {
+            if !self.tasks.show_panel && self.tasks.scheduler.should_launch(usage, self.chat.waiting) {
                 let task = self.tasks.scheduler.next_task();
                 self.chat.messages
                     .push(("user".into(), format!("[Auto] {}", task.name)));
-                let cwd = self.cwd.display().to_string();
-                self.spawn_claude(task.prompt, true, true, Some(&cwd), None);
+                let cwd = if task.cwd.is_empty() {
+                    self.cwd.display().to_string()
+                } else {
+                    task.cwd.clone()
+                };
+                self.spawn_claude(task.prompt, task.resume, task.read_only, Some(&cwd), None, task.setup);
             }
         }
     }
@@ -433,6 +455,104 @@ fn fetch_oauth_usage() -> Option<UsageStatus> {
         seven_day_sonnet_pct,
         last_fetched: Instant::now(),
     })
+}
+
+#[cfg(test)]
+impl App {
+    /// Side-effect-free constructor for tests: no file I/O, no threads.
+    pub(crate) fn test_default() -> Self {
+        Self {
+            mode: Mode::ProjectSelect,
+            view: View::ProjectList,
+            input_mode: InputMode::Normal,
+            should_quit: false,
+            projects: Vec::new(),
+            sessions: Vec::new(),
+            conversation: Vec::new(),
+            claude_md_content: String::new(),
+            project_idx: 0,
+            session_idx: 0,
+            scroll_offset: 0,
+            clipboard_msg: None,
+            usage_status: None,
+            usage_rx: None,
+            usage_fetching: false,
+            gateway_url: None,
+            gateway_headers: None,
+            gateway_enabled: false,
+            cwd: PathBuf::new(),
+            path_input: String::new(),
+            chat: ChatState {
+                messages: Vec::new(),
+                input: String::new(),
+                scroll: 0,
+                waiting: false,
+                waiting_since: None,
+                error: None,
+                session_id: None,
+                response_rx: None,
+                tone: ChatTone::Advisor,
+                hint: None,
+                new_msg_at: None,
+                child_pid: Arc::new(AtomicU32::new(0)),
+            },
+            tasks: TaskState {
+                items: Vec::new(),
+                show_input: false,
+                input: String::new(),
+                show_panel: false,
+                selected_idx: 0,
+                scroll: 0,
+                scheduler: Scheduler::new(Pipeline::Example, "", ""),
+                goal_input: false,
+                goal_text: String::new(),
+                pipeline_picker: false,
+                pipeline_idx: 0,
+            },
+            search: SearchState {
+                query: String::new(),
+                project_indices: Vec::new(),
+                session_indices: Vec::new(),
+                rg_query: String::new(),
+                rg_matches: HashMap::new(),
+                rg_active: false,
+                rg_rx: None,
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_claude_json_valid() {
+        let json = r#"[
+            {"type":"init","session_id":"sess-1"},
+            {"type":"result","session_id":"sess-1","result":"all done"}
+        ]"#;
+        let (sid, text) = parse_claude_json(json).unwrap();
+        assert_eq!(sid, "sess-1");
+        assert_eq!(text, "all done");
+    }
+
+    #[test]
+    fn test_parse_claude_json_no_result() {
+        let json = r#"[{"type":"init","session_id":"sess-1"}]"#;
+        assert!(parse_claude_json(json).is_err());
+    }
+
+    #[test]
+    fn test_parse_claude_json_invalid() {
+        assert!(parse_claude_json("not json").is_err());
+    }
+
+    #[test]
+    fn test_parse_claude_json_missing_session_id() {
+        let json = r#"[{"type":"result","result":"ok"}]"#;
+        assert!(parse_claude_json(json).is_err());
+    }
 }
 
 /// Parse Claude JSON output array, extract session_id and result text from the "result" event.
