@@ -1,5 +1,5 @@
 ---
-name: e2e-testing-tui-apps
+name: test
 description: Use when writing E2E or integration tests for terminal UI apps built with ratatui/crossterm in Rust, or when spawning CLI subprocesses like claude from tests. Triggers on PTY testing, expectrl, Stdio::piped bugs, empty stdout from subprocesses, or CLAUDECODE nesting errors.
 ---
 
