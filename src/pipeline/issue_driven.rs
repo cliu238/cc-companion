@@ -90,11 +90,7 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
 
         VERIFY => vec![AutoTask {
             name: FINISH.into(),
-            prompt: "/superpowers:finishing-a-development-branch\n\n\
-                     - Confirm all checks pass before proceeding.\n\
-                     - Merge the pull request via `gh pr merge` (prefer squash merge).\n\
-                     - Remove the git worktree.\n\
-                     - Close the GitHub issue.".into(),
+            prompt: "/superpowers:finishing-a-development-branch".into(),
             cwd: project_cwd.to_string(),
             read_only: false,
             resume: true,
