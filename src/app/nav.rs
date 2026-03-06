@@ -92,7 +92,7 @@ impl App {
     }
 
     pub(crate) fn handle_task_input_key(&mut self, key: KeyEvent) {
-        // Goal input mode for SelfEvolve pipeline
+        // Goal input mode for IssueDriven pipeline (goal = label filter)
         if self.tasks.goal_input {
             match key.code {
                 KeyCode::Esc => {
@@ -104,7 +104,7 @@ impl App {
                     let goal = self.tasks.goal_text.trim().to_string();
                     let cwd = self.cwd.display().to_string();
                     self.tasks.scheduler.switch_pipeline(
-                        crate::pipeline::Pipeline::SelfEvolve, &cwd, &goal,
+                        crate::pipeline::Pipeline::IssueDriven, &cwd, &goal,
                     );
                     self.tasks.selected_idx = 0;
                     self.tasks.goal_input = false;

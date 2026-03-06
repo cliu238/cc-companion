@@ -28,7 +28,7 @@ impl App {
                 KeyCode::Enter => {
                     let selected = pipelines[self.tasks.pipeline_idx];
                     self.tasks.pipeline_picker = false;
-                    if selected == Pipeline::SelfEvolve {
+                    if selected == Pipeline::IssueDriven {
                         self.tasks.goal_input = true;
                         self.tasks.goal_text.clear();
                         self.input_mode = InputMode::TaskInput;

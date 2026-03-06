@@ -1,5 +1,5 @@
 mod example;
-mod self_evolve;
+mod issue_driven;
 
 use chrono::Utc;
 use crate::app::UsageStatus;
@@ -22,39 +22,39 @@ pub struct AutoTask {
 #[derive(Clone, Copy, PartialEq)]
 pub enum Pipeline {
     Example,
-    SelfEvolve,
+    IssueDriven,
 }
 
 impl Pipeline {
     pub fn label(&self) -> &str {
         match self {
             Self::Example => "Example",
-            Self::SelfEvolve => "Self-Evolve",
+            Self::IssueDriven => "Issue-Driven",
         }
     }
 
     pub fn description(&self) -> &str {
         match self {
             Self::Example => "Read-only analysis tasks (code review, tests, refactor, docs)",
-            Self::SelfEvolve => "Analyze project, generate improvements, implement via worktree PRs",
+            Self::IssueDriven => "Fetch GitHub issues, implement via TDD + worktree PRs",
         }
     }
 
     pub fn all() -> &'static [Pipeline] {
-        &[Pipeline::Example, Pipeline::SelfEvolve]
+        &[Pipeline::Example, Pipeline::IssueDriven]
     }
 
     pub fn initial_tasks(&self, project_cwd: &str, goal: &str) -> Vec<AutoTask> {
         match self {
             Self::Example => example::tasks(project_cwd),
-            Self::SelfEvolve => self_evolve::initial_tasks(project_cwd, goal),
+            Self::IssueDriven => issue_driven::initial_tasks(project_cwd, goal),
         }
     }
 
     pub fn on_complete(&self, task_name: &str, output: &str, project_cwd: &str, goal: &str) -> Vec<AutoTask> {
         match self {
             Self::Example => vec![],
-            Self::SelfEvolve => self_evolve::on_complete(task_name, output, project_cwd, goal),
+            Self::IssueDriven => issue_driven::on_complete(task_name, output, project_cwd, goal),
         }
     }
 }
@@ -80,9 +80,9 @@ mod tests {
     #[test]
     fn test_pipeline_labels() {
         assert_eq!(Pipeline::Example.label(), "Example");
-        assert_eq!(Pipeline::SelfEvolve.label(), "Self-Evolve");
+        assert_eq!(Pipeline::IssueDriven.label(), "Issue-Driven");
         assert!(!Pipeline::Example.description().is_empty());
-        assert!(!Pipeline::SelfEvolve.description().is_empty());
+        assert!(!Pipeline::IssueDriven.description().is_empty());
     }
 
     #[test]
@@ -189,8 +189,8 @@ impl Scheduler {
             let new_tasks = self.pipeline.on_complete(&name, output, project_cwd, &self.goal);
             self.tasks.extend(new_tasks);
             self.done.push(name);
-            // Cycle: start new round when queue is empty (SelfEvolve only)
-            if self.tasks.is_empty() && self.pipeline == Pipeline::SelfEvolve {
+            // Cycle: start new round when queue is empty (IssueDriven only)
+            if self.tasks.is_empty() && self.pipeline == Pipeline::IssueDriven {
                 self.tasks = self.pipeline.initial_tasks(project_cwd, &self.goal);
             }
         }
