@@ -112,6 +112,37 @@ mod tests {
     }
 
     #[test]
+    fn test_complete_running_cycles_issue_driven() {
+        let mut sched = Scheduler::new(Pipeline::IssueDriven, "/tmp", "");
+        // Simulate running the final "finish" task
+        sched.tasks.clear();
+        sched.running = Some("finish".into());
+        sched.complete_running("Done", "/tmp");
+        // Should cycle: queue gets refilled with initial tasks
+        assert!(!sched.tasks.is_empty(), "IssueDriven should restart after normal completion");
+    }
+
+    #[test]
+    fn test_complete_running_halts_on_issues_empty() {
+        let mut sched = Scheduler::new(Pipeline::IssueDriven, "/tmp", "");
+        sched.tasks.clear();
+        sched.running = Some("implement-issue".into());
+        sched.complete_running("ISSUES_EMPTY", "/tmp");
+        // Should NOT cycle: halt signal stops restart
+        assert!(sched.tasks.is_empty(), "IssueDriven must halt when ISSUES_EMPTY");
+    }
+
+    #[test]
+    fn test_complete_running_halts_on_failed() {
+        let mut sched = Scheduler::new(Pipeline::IssueDriven, "/tmp", "");
+        sched.tasks.clear();
+        sched.running = Some("run-tests".into());
+        sched.complete_running("FAILED=compilation error", "/tmp");
+        // Should NOT cycle: halt signal stops restart
+        assert!(sched.tasks.is_empty(), "IssueDriven must halt when FAILED=");
+    }
+
+    #[test]
     fn test_should_launch_too_far() {
         let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
         sched.enabled = true;
