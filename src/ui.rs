@@ -590,7 +590,7 @@ fn draw_pipeline_picker(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     // 2 lines per pipeline (name + description) + 1 blank between + border
     let content_h = pipelines.len() as u16 * 3;
     let popup_h = content_h + 2; // borders
-    let popup_w = 70u16.min(area.width.saturating_sub(4));
+    let popup_w = 70u16.min(area.width.saturating_sub(4)).max(1);
     let x = area.x + (area.width.saturating_sub(popup_w)) / 2;
     let y = area.y + (area.height.saturating_sub(popup_h)) / 2;
     let popup_area = ratatui::layout::Rect::new(x, y, popup_w, popup_h);

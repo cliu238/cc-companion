@@ -92,6 +92,8 @@ fn test_search_filters_and_clears() {
     // Press Enter to accept the search
     app.send("\r").unwrap();
     // Should show "0" projects (filtered down)
+    // NOTE: Copilot suggested matching "(0)" but PTY differential rendering splits
+    // parentheses with ANSI escapes. Matching bare "0" is broad but reliable.
     app.expect("0").expect("expected 0 projects after nonsense search");
     app.send("q").unwrap();
     app.expect(Eof).unwrap();

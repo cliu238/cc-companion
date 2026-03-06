@@ -189,8 +189,10 @@ impl Scheduler {
             let new_tasks = self.pipeline.on_complete(&name, output, project_cwd, &self.goal);
             self.tasks.extend(new_tasks);
             self.done.push(name);
-            // Cycle: start new round when queue is empty (IssueDriven only)
-            if self.tasks.is_empty() && self.pipeline == Pipeline::IssueDriven {
+            // Cycle: start new round when queue is empty (IssueDriven only),
+            // but not when halted by signals.
+            let halted = output.contains("ISSUES_EMPTY") || output.contains("FAILED=");
+            if self.tasks.is_empty() && self.pipeline == Pipeline::IssueDriven && !halted {
                 self.tasks = self.pipeline.initial_tasks(project_cwd, &self.goal);
             }
         }

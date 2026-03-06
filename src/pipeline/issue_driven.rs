@@ -57,6 +57,11 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
                      - Use `superpowers:using-git-worktrees` to fetch the next GitHub issue (gh cli).{label_filter}\n\n\
                      - Use `superpowers:test-driven-development` skill and `/test` skills to fix it \
                      following strict red->green->refactor TDD.\n\n\
+                     - Unit tests alone are NOT sufficient for user-visible changes. \
+                     Choose test level based on what changed: \
+                     logic/data → unit tests, UI rendering → TestBackend render tests, \
+                     user interaction flows → PTY E2E tests (expectrl). \
+                     At minimum, add one E2E test proving the feature works end-to-end.\n\n\
                      - Run `/test` to verify all tests pass.\n\n\
                      - Submit the PR and use `superpowers:requesting-code-review` to request a review.\n\n\
                      Previous test output:\n{output}"
@@ -131,6 +136,7 @@ mod tests {
         assert!(tasks[0].setup.is_some());
         assert!(tasks[0].prompt.contains(output));
         assert!(tasks[0].prompt.contains("bug"));
+        assert!(tasks[0].prompt.contains("NOT sufficient"));
     }
 
     #[test]
