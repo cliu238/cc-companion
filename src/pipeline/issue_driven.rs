@@ -20,7 +20,7 @@ pub fn initial_tasks(project_cwd: &str, _goal: &str) -> Vec<AutoTask> {
 
 pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str) -> Vec<AutoTask> {
     // Halt signals
-    if output.contains("ISSUES_EMPTY") || output.starts_with("FAILED=") {
+    if output.contains("ISSUES_EMPTY") || output.contains("FAILED=") {
         return vec![];
     }
 
@@ -28,8 +28,8 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
         LOAD_SKILLS => vec![AutoTask {
             name: RUN_TESTS.into(),
             prompt: "Run `/test` skill to run all tests. If the `/test` skill is missing, \
-                     use `/skill-creator` to create a `/test` skill that auto-detects the \
-                     project's test framework. The skill name MUST be `test`.".into(),
+                     create a `/test` skill that auto-detects the project's test framework. \
+                     The skill name MUST be `test`.".into(),
             cwd: project_cwd.to_string(),
             read_only: false,
             resume: false,
@@ -42,9 +42,13 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
             } else {
                 format!(" Use `gh issue list --label {}` to filter.", goal)
             };
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
             let worktree_setup = format!(
-                "git -C {} worktree add {}/.worktrees/issue-driven -b issue-driven-impl 2>/dev/null || true",
-                project_cwd, project_cwd
+                "git -C {cwd} worktree add {cwd}/.worktrees/issue-{ts} -b issue-driven-{ts}",
+                cwd = project_cwd, ts = ts
             );
             vec![AutoTask {
                 name: IMPLEMENT.into(),
@@ -162,6 +166,13 @@ mod tests {
     #[test]
     fn test_failed_halts() {
         let tasks = on_complete(RUN_TESTS, "FAILED=compilation error", "/tmp/proj", "");
+        assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn test_failed_halts_mid_output() {
+        // FAILED= can appear anywhere in output, not just at the start
+        let tasks = on_complete(RUN_TESTS, "Some preamble\nFAILED=build error", "/tmp/proj", "");
         assert!(tasks.is_empty());
     }
 
