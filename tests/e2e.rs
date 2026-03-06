@@ -106,6 +106,25 @@ fn test_help_bar_shows_keybindings() {
     app.expect(Eof).unwrap();
 }
 
+#[test]
+fn test_task_panel_opens_in_chat() {
+    let mut app = spawn_app();
+    app.expect("Select Project").unwrap();
+    // Select first project to enter Chat mode
+    app.send("\r").unwrap();
+    app.expect("i=type").expect("didn't enter Chat mode");
+    std::thread::sleep(Duration::from_millis(500));
+    // 'X' opens task panel — help bar changes to panel-specific keys
+    app.send("X").unwrap();
+    // "p=pipeline" is unique to the task panel help bar (not in normal Chat help bar)
+    app.expect("p=pipeline").expect("task panel help bar not shown");
+    // Close panel and quit
+    app.send("\x1b").unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    app.send("q").unwrap();
+    app.expect(Eof).unwrap();
+}
+
 // ---------------------------------------------------------------------------
 // True E2E tests that call Claude Code headless.
 // These require a valid OAuth token and network access.
