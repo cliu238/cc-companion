@@ -336,12 +336,8 @@ impl App {
                 let task = self.tasks.scheduler.next_task();
                 self.chat.messages
                     .push(("user".into(), format!("[Auto] {}", task.name)));
-                let cwd = if task.cwd.is_empty() {
-                    self.cwd.display().to_string()
-                } else {
-                    task.cwd.clone()
-                };
-                self.spawn_claude(task.prompt, task.resume, task.read_only, Some(&cwd), None, task.setup);
+                let config = self.config_for_task(&task);
+                self.spawn_claude(config);
             }
         }
     }

@@ -142,12 +142,8 @@ impl App {
                                 let task = self.tasks.scheduler.run_task(pending_idx);
                                 self.chat.messages
                                     .push(("user".into(), format!("[Manual] {}", task.name)));
-                                let cwd = if task.cwd.is_empty() {
-                                    if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) }
-                                } else {
-                                    Some(task.cwd.clone())
-                                };
-                                self.spawn_claude(task.prompt, task.resume, task.read_only, cwd.as_deref(), None, task.setup);
+                                let config = self.config_for_task(&task);
+                                self.spawn_claude(config);
                             }
                         }
                     }
@@ -266,69 +262,36 @@ impl App {
 
     fn send_chat_message(&mut self, msg: String) {
         self.chat.messages.push(("user".into(), msg.clone()));
-        let cwd = if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) };
-        self.spawn_claude(msg, true, true, cwd.as_deref(), None, None);
+        let system_prompt = format!("{}{}", BASE_SYSTEM_PROMPT, self.chat.tone.suffix());
+        self.spawn_claude(SpawnConfig {
+            msg,
+            resume_session: self.chat.session_id.clone(),
+            read_only: true,
+            cwd: if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) },
+            model: None,
+            setup: None,
+            system_prompt: Some(system_prompt),
+            gateway: self.build_gateway_config(),
+        });
     }
 
     /// Shared helper: spawn a background `claude` CLI call.
-    /// `resume` — attach to existing session; `read_only` — disallow write tools.
-    /// `cwd` — optional working directory for the claude process.
-    pub(crate) fn spawn_claude(&mut self, msg: String, resume: bool, read_only: bool, cwd: Option<&str>, model: Option<&str>, setup: Option<String>) {
+    pub(crate) fn spawn_claude(&mut self, config: SpawnConfig) {
         self.chat.error = None;
         self.chat.waiting = true;
         self.chat.waiting_since = Some(Instant::now());
         self.chat.child_pid.store(0, Ordering::Relaxed);
 
-        let session_id = if resume { self.chat.session_id.clone() } else { None };
-        let gw_enabled = self.gateway_enabled;
-        let gw_url = self.gateway_url.clone();
-        let gw_headers = self.gateway_headers.clone();
-        let system_prompt = format!("{}{}", BASE_SYSTEM_PROMPT, self.chat.tone.suffix());
-        let work_dir = cwd.map(|s| s.to_string());
-        let model_flag = model.map(|s| s.to_string());
         let pid_handle = Arc::clone(&self.chat.child_pid);
 
         let (tx, rx) = mpsc::channel();
         self.chat.response_rx = Some(rx);
 
         thread::spawn(move || {
-            if let Some(setup_cmd) = &setup {
+            if let Some(setup_cmd) = &config.setup {
                 let _ = Command::new("sh").arg("-c").arg(setup_cmd).output();
             }
-            let mut cmd = Command::new("claude");
-            cmd.stdout(std::process::Stdio::piped());
-            cmd.stderr(std::process::Stdio::piped());
-            if let Some(dir) = &work_dir {
-                if !dir.is_empty() {
-                    cmd.current_dir(dir);
-                    cmd.arg("--add-dir").arg(dir);
-                }
-            }
-            if gw_enabled {
-                if let Some(url) = &gw_url {
-                    cmd.env("ANTHROPIC_BASE_URL", url);
-                }
-                if let Some(headers) = &gw_headers {
-                    cmd.env("ANTHROPIC_CUSTOM_HEADERS", headers);
-                }
-            } else {
-                cmd.env_remove("ANTHROPIC_BASE_URL");
-                cmd.env_remove("ANTHROPIC_CUSTOM_HEADERS");
-            }
-            if let Some(m) = &model_flag {
-                cmd.arg("--model").arg(m);
-            }
-            cmd.arg("--system-prompt").arg(&system_prompt);
-            cmd.arg("-p").arg(&msg);
-            cmd.arg("--output-format").arg("json");
-            cmd.arg("--permission-mode").arg("dontAsk");
-            if read_only {
-                cmd.arg("--disallowedTools")
-                    .arg("Write,Edit,MultiEdit,TodoWrite");
-            }
-            if let Some(id) = &session_id {
-                cmd.arg("--resume").arg(id);
-            }
+            let mut cmd = build_claude_cmd(&config);
 
             let result = match cmd.spawn() {
                 Ok(child) => {
@@ -365,6 +328,40 @@ impl App {
             };
             let _ = tx.send(result);
         });
+    }
+
+    fn build_gateway_config(&self) -> Option<GatewayConfig> {
+        if self.gateway_enabled {
+            self.gateway_url.as_ref().map(|url| GatewayConfig {
+                url: url.clone(),
+                headers: self.gateway_headers.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn config_for_task(&self, task: &crate::pipeline::AutoTask) -> SpawnConfig {
+        let cwd = if task.cwd.is_empty() {
+            if self.cwd.as_os_str().is_empty() { None } else { Some(self.cwd.display().to_string()) }
+        } else {
+            Some(task.cwd.clone())
+        };
+        let system_prompt = if task.use_advisor {
+            Some(BASE_SYSTEM_PROMPT.to_string())
+        } else {
+            None
+        };
+        SpawnConfig {
+            msg: task.prompt.clone(),
+            resume_session: if task.resume { self.chat.session_id.clone() } else { None },
+            read_only: task.read_only,
+            cwd,
+            model: None,
+            setup: task.setup.clone(),
+            system_prompt,
+            gateway: self.build_gateway_config(),
+        }
     }
 
     /// Cancel the currently running claude process.
