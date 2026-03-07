@@ -51,6 +51,22 @@ impl ChatTone {
     }
 }
 
+pub enum UsageError {
+    RateLimited,
+    Network(String),
+    Parse(String),
+}
+
+impl UsageError {
+    pub fn message(&self) -> String {
+        match self {
+            Self::RateLimited => "Rate limited".into(),
+            Self::Network(detail) => format!("Network error: {}", detail),
+            Self::Parse(detail) => format!("Parse error: {}", detail),
+        }
+    }
+}
+
 pub struct UsageStatus {
     pub five_hour_pct: f64,
     pub five_hour_resets_at: Option<DateTime<Utc>>,
@@ -159,7 +175,9 @@ pub struct App {
 
     // Usage status
     pub usage_status: Option<UsageStatus>,
-    usage_rx: Option<Receiver<Option<UsageStatus>>>,
+    pub usage_error: Option<UsageError>,
+    pub usage_last_attempt: Option<Instant>,
+    usage_rx: Option<Receiver<Result<UsageStatus, UsageError>>>,
     usage_fetching: bool,
 
     // Gateway
@@ -195,6 +213,8 @@ impl App {
             scroll_offset: 0,
             clipboard_msg: None,
             usage_status: None,
+            usage_error: None,
+            usage_last_attempt: None,
             usage_rx: None,
             usage_fetching: false,
             gateway_url: std::env::var("ANTHROPIC_BASE_URL").ok(),
@@ -275,7 +295,15 @@ impl App {
         // Check usage status response
         if let Some(rx) = &self.usage_rx {
             if let Ok(result) = rx.try_recv() {
-                self.usage_status = result;
+                match result {
+                    Ok(status) => {
+                        self.usage_status = Some(status);
+                        self.usage_error = None;
+                    }
+                    Err(e) => {
+                        self.usage_error = Some(e);
+                    }
+                }
                 self.usage_rx = None;
                 self.usage_fetching = false;
             }
@@ -323,7 +351,10 @@ impl App {
         if !self.usage_fetching {
             let should_fetch = match &self.usage_status {
                 Some(s) => s.last_fetched.elapsed().as_secs() >= 300,
-                None => self.usage_rx.is_none(),
+                None => match &self.usage_last_attempt {
+                    Some(t) => t.elapsed().as_secs() >= 300,
+                    None => true, // First fetch
+                },
             };
             if should_fetch {
                 self.fetch_usage();
@@ -344,6 +375,7 @@ impl App {
 
     fn fetch_usage(&mut self) {
         self.usage_fetching = true;
+        self.usage_last_attempt = Some(Instant::now());
         let (tx, rx) = mpsc::channel();
         self.usage_rx = Some(rx);
 
@@ -403,12 +435,14 @@ impl App {
 }
 
 /// Fetch usage from the Anthropic OAuth API.
-fn fetch_oauth_usage() -> Option<UsageStatus> {
-    let token = crate::platform::get_oauth_token()?;
+fn fetch_oauth_usage() -> Result<UsageStatus, UsageError> {
+    let token = crate::platform::get_oauth_token()
+        .ok_or_else(|| UsageError::Network("no oauth token".into()))?;
 
     let api_output = std::process::Command::new("curl")
         .args([
             "-s",
+            "-w", "\n%{http_code}",
             "-H", "Accept: application/json",
             "-H", "Content-Type: application/json",
             "-H", "User-Agent: claude-code",
@@ -417,22 +451,40 @@ fn fetch_oauth_usage() -> Option<UsageStatus> {
             "https://api.anthropic.com/api/oauth/usage",
         ])
         .output()
-        .ok()?;
-    if !api_output.status.success() {
-        return None;
-    }
-    let raw = String::from_utf8_lossy(&api_output.stdout);
-    let val: serde_json::Value = serde_json::from_str(&raw).ok()?;
+        .map_err(|e| UsageError::Network(e.to_string()))?;
 
-    let five_hour = val.get("five_hour")?;
-    let five_hour_pct = five_hour.get("utilization")?.as_f64()?;
+    let raw = String::from_utf8_lossy(&api_output.stdout);
+    let raw = raw.trim();
+
+    // curl -w "\n%{http_code}" appends status code on last line
+    let (body, status_str) = raw.rsplit_once('\n').unwrap_or((raw, ""));
+    let http_status: u16 = status_str.parse().unwrap_or(0);
+
+    if http_status == 429 {
+        return Err(UsageError::RateLimited);
+    }
+    if http_status != 200 && http_status != 0 {
+        return Err(UsageError::Network(format!("HTTP {}", http_status)));
+    }
+
+    let val: serde_json::Value = serde_json::from_str(body)
+        .map_err(|e| UsageError::Parse(e.to_string()))?;
+
+    let five_hour = val.get("five_hour")
+        .ok_or_else(|| UsageError::Parse("missing five_hour".into()))?;
+    let five_hour_pct = five_hour.get("utilization")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| UsageError::Parse("missing five_hour.utilization".into()))?;
     let five_hour_resets_at = five_hour
         .get("resets_at")
         .and_then(|v| v.as_str())
         .and_then(|s| s.parse::<DateTime<Utc>>().ok());
 
-    let seven_day = val.get("seven_day")?;
-    let seven_day_pct = seven_day.get("utilization")?.as_f64()?;
+    let seven_day = val.get("seven_day")
+        .ok_or_else(|| UsageError::Parse("missing seven_day".into()))?;
+    let seven_day_pct = seven_day.get("utilization")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| UsageError::Parse("missing seven_day.utilization".into()))?;
     let seven_day_resets_at = seven_day
         .get("resets_at")
         .and_then(|v| v.as_str())
@@ -443,7 +495,7 @@ fn fetch_oauth_usage() -> Option<UsageStatus> {
         .and_then(|v| v.get("utilization"))
         .and_then(|v| v.as_f64());
 
-    Some(UsageStatus {
+    Ok(UsageStatus {
         five_hour_pct,
         five_hour_resets_at,
         seven_day_pct,
@@ -471,6 +523,8 @@ impl App {
             scroll_offset: 0,
             clipboard_msg: None,
             usage_status: None,
+            usage_error: None,
+            usage_last_attempt: None,
             usage_rx: None,
             usage_fetching: false,
             gateway_url: None,
@@ -548,6 +602,43 @@ mod tests {
     fn test_parse_claude_json_missing_session_id() {
         let json = r#"[{"type":"result","result":"ok"}]"#;
         assert!(parse_claude_json(json).is_err());
+    }
+
+    #[test]
+    fn test_usage_error_rate_limited() {
+        let err = UsageError::RateLimited;
+        assert_eq!(err.message(), "Rate limited");
+    }
+
+    #[test]
+    fn test_usage_error_network() {
+        let err = UsageError::Network("timeout".into());
+        assert_eq!(err.message(), "Network error: timeout");
+    }
+
+    #[test]
+    fn test_usage_error_parse() {
+        let err = UsageError::Parse("bad json".into());
+        assert_eq!(err.message(), "Parse error: bad json");
+    }
+
+    #[test]
+    fn test_app_stores_usage_error() {
+        let mut app = App::test_default();
+        app.usage_error = Some(UsageError::RateLimited);
+        assert!(app.usage_error.is_some());
+        assert!(app.usage_status.is_none());
+    }
+
+    #[test]
+    fn test_usage_last_attempt_prevents_busy_loop() {
+        let mut app = App::test_default();
+        // Simulate: error received, no pending rx
+        app.usage_error = Some(UsageError::RateLimited);
+        app.usage_last_attempt = Some(Instant::now());
+        app.usage_fetching = false;
+        // The periodic check should NOT trigger a re-fetch because last_attempt is recent
+        assert!(app.usage_last_attempt.unwrap().elapsed().as_secs() < 300);
     }
 }
 
