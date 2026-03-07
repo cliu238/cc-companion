@@ -54,7 +54,11 @@ pub(crate) fn build_claude_cmd(config: &SpawnConfig) -> Command {
     }
     cmd.arg("-p").arg(&config.msg);
     cmd.arg("--output-format").arg("json");
-    cmd.arg("--permission-mode").arg("dontAsk");
+    if config.system_prompt.is_some() {
+        cmd.arg("--permission-mode").arg("dontAsk");
+    } else {
+        cmd.arg("--permission-mode").arg("bypassPermissions");
+    }
     if config.read_only {
         cmd.arg("--disallowedTools")
             .arg("Write,Edit,MultiEdit,TodoWrite");
@@ -469,6 +473,25 @@ mod tests {
         let args: Vec<_> = cmd.get_args().collect();
         assert!(args.contains(&"--model".as_ref()));
         assert!(args.contains(&"claude-sonnet-4-6".as_ref()));
+    }
+
+    #[test]
+    fn test_build_cmd_advisor_uses_dontask() {
+        let mut config = base_config();
+        config.system_prompt = Some("You are an advisor.".into());
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(args.contains(&"dontAsk".as_ref()),
+            "advisor mode should use dontAsk permission mode");
+    }
+
+    #[test]
+    fn test_build_cmd_execution_uses_bypass() {
+        let config = base_config(); // system_prompt is None
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(args.contains(&"bypassPermissions".as_ref()),
+            "execution mode should use bypassPermissions");
     }
 
     #[test]

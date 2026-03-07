@@ -173,6 +173,8 @@ fn test_mock_chat_includes_system_prompt() {
         "chat should include --system-prompt, got: {}",
         args
     );
+    assert!(args.contains("dontAsk"),
+        "chat should use dontAsk permission mode, got: {}", args);
 
     app.send("q").unwrap();
     app.expect(Eof).unwrap();
@@ -225,6 +227,8 @@ fn test_mock_pipeline_task_skips_system_prompt() {
         "pipeline task should NOT include --system-prompt, got: {}",
         args
     );
+    assert!(args.contains("bypassPermissions"),
+        "pipeline task should use bypassPermissions, got: {}", args);
 
     app.send("q").unwrap();
     app.expect(Eof).unwrap();
