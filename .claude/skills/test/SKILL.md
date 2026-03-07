@@ -174,6 +174,35 @@ macro_rules! step {
 // Run with: cargo test -- --ignored --test-threads=1 --nocapture
 ```
 
+### 10. Poll popup panels for real-API completion detection
+
+In real-API tests, `expect()` fails for responses after the first because the title bar doesn't change between responses (differential rendering). **Opening a popup panel forces a full redraw**, so the panel title is always emitted fresh.
+
+Use a polling loop instead of a single `expect()`:
+
+```rust
+// BAD: title "cc-companion | Chat" doesn't change between responses
+app.expect("cc-companion:").expect("step 2 done");  // times out!
+
+// GOOD: poll task panel — opening draws it fresh each time
+app.set_expect_timeout(Some(Duration::from_secs(5)));
+let mut done = false;
+for _ in 0..30 {  // 30 × 10s = 300s max
+    std::thread::sleep(Duration::from_secs(10));
+    app.send("X").unwrap();  // Open panel
+    if app.expect("2 done").is_ok() {
+        done = true;
+        break;
+    }
+    app.send("\x1b").unwrap();  // Close panel, retry
+}
+assert!(done, "step didn't complete");
+```
+
+**Why this works:** Each `send("X")` opens the task panel popup, which occupies new screen area. Ratatui draws the entire popup fresh (it wasn't on screen before), so the title `"Issue-Driven | 2 done / 0 running / 1 pending"` is always fully emitted in the PTY stream.
+
+**When to use:** Any real-API test waiting for a second or subsequent async operation where the screen doesn't visibly change.
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -186,6 +215,7 @@ macro_rules! step {
 | Testing claude from Claude Code Bash | Write ignored tests, run from normal terminal |
 | `expect()` for text in same screen region | Use unique substring not in previous frame |
 | Sending keys immediately after `expect()` | Add `sleep()` between mode transitions |
+| `expect()` for 2nd+ real-API response | Poll popup panel (open/close) to get fresh redraw |
 
 ## Mock CLI Testing
 
@@ -202,19 +232,21 @@ For testing CLI subprocess behavior without real API calls, use a mock script th
 3. In PTY test, override PATH so `claude` resolves to the mock:
 
 ```rust
-fn spawn_app_with_mock_claude(timeout_secs: u64) -> (OsSession, PathBuf) {
+fn spawn_app_with_mock_claude(timeout_secs: u64) -> (OsSession, PathBuf, PathBuf) {
     let mock_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let args_file = std::env::temp_dir().join(format!("mock_args_{}", std::process::id()));
+    let count_file = std::env::temp_dir().join(format!("mock_count_{}", std::process::id()));
     let path = format!("{}:{}", mock_dir.display(), std::env::var("PATH").unwrap_or_default());
 
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_my_app"));
     cmd.env("PATH", &path);
     cmd.env("MOCK_CLAUDE_ARGS_FILE", &args_file);
+    cmd.env("MOCK_CLAUDE_CALL_COUNT", &count_file);
     cmd.env_remove("CLAUDECODE");
 
     let mut session = Session::spawn(cmd).unwrap();
     session.set_expect_timeout(Some(Duration::from_secs(timeout_secs)));
-    (session, args_file)
+    (session, args_file, count_file)
 }
 ```
 
@@ -227,6 +259,37 @@ assert!(args.contains("--system-prompt"), "expected --system-prompt in args");
 
 ### Key points
 - Mock script must output the exact JSON format the app expects (`[{"type":"init",...},{"type":"result",...}]`)
-- Clean up `args_file` at end of test
+- Clean up `args_file` and `count_file` at end of test
 - Use unique filename (PID or atomic counter) to avoid collisions in parallel test runs
 - Create symlink `tests/fixtures/claude -> mock_claude` since the app invokes `claude` by name
+
+### Stateful mocks for multi-step pipeline testing
+
+For testing multi-step workflows (e.g., pipeline chains), make the mock **stateful**:
+
+1. **Call counting** via `$MOCK_CLAUDE_CALL_COUNT` env var pointing to a file:
+```bash
+COUNT=0
+if [ -n "$MOCK_CLAUDE_CALL_COUNT" ]; then
+    [ -f "$MOCK_CLAUDE_CALL_COUNT" ] && COUNT=$(cat "$MOCK_CLAUDE_CALL_COUNT")
+    COUNT=$((COUNT + 1))
+    echo "$COUNT" > "$MOCK_CLAUDE_CALL_COUNT"
+fi
+```
+
+2. **Step detection** via `case` on the `-p` prompt arg — return step-specific responses:
+```bash
+case "$MSG" in
+    *"Load"*"/domain-knowledge"*) RESULT="Skills loaded" ;;
+    *"finishing-a-development-branch"*) RESULT="Branch merged" ;;
+esac
+```
+
+3. **Delay support** via `$MOCK_CLAUDE_DELAY` for testing cancel:
+```bash
+[ -n "$MOCK_CLAUDE_DELAY" ] && sleep "$MOCK_CLAUDE_DELAY"
+```
+
+4. **Append args** with `>>` (not `>`) so all calls in a chain are recorded.
+
+**Pattern ordering in bash `case`:** More specific patterns must come first. If step A's prompt contains substrings that match step B's pattern, step A's pattern must precede step B's to avoid false matches (bash `case` uses first-match-wins).
