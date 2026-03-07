@@ -127,6 +127,110 @@ fn test_task_panel_opens_in_chat() {
     app.expect(Eof).unwrap();
 }
 
+/// Spawn the app with `claude` overridden by mock script.
+/// Returns (session, args_file_path).
+fn spawn_app_with_mock_claude(timeout_secs: u64) -> (OsSession, std::path::PathBuf) {
+    let bin = env!("CARGO_BIN_EXE_cc-companion");
+    let mock_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let args_file = std::env::temp_dir().join(format!(
+        "mock_claude_args_{}_{}", std::process::id(), id
+    ));
+
+    let original_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{}", mock_dir.display(), original_path);
+
+    let mut cmd = Command::new(bin);
+    cmd.env_remove("CLAUDECODE");
+    cmd.env("PATH", &new_path);
+    cmd.env("MOCK_CLAUDE_ARGS_FILE", &args_file);
+
+    let mut session = Session::spawn(cmd).expect("failed to spawn with mock");
+    session.set_expect_timeout(Some(Duration::from_secs(timeout_secs)));
+    (session, args_file)
+}
+
+#[test]
+fn test_mock_chat_includes_system_prompt() {
+    let (mut app, args_file) = spawn_app_with_mock_claude(15);
+    app.expect("Select Project").unwrap();
+    app.send("\r").unwrap();
+    app.expect("i=type").unwrap();
+
+    std::thread::sleep(Duration::from_secs(1));
+    app.send("i").unwrap();
+    app.expect("Alt+Enter").unwrap();
+    app.send("hello\r").unwrap();
+
+    // Wait for mock response to appear
+    app.expect("Mock response").expect("mock claude didn't respond");
+
+    // Verify args file was written and contains --system-prompt
+    let args = std::fs::read_to_string(&args_file).unwrap_or_default();
+    assert!(
+        args.contains("--system-prompt"),
+        "chat should include --system-prompt, got: {}",
+        args
+    );
+
+    app.send("q").unwrap();
+    app.expect(Eof).unwrap();
+    let _ = std::fs::remove_file(&args_file);
+}
+
+#[test]
+fn test_mock_pipeline_task_skips_system_prompt() {
+    let (mut app, args_file) = spawn_app_with_mock_claude(15);
+    app.expect("Select Project").unwrap();
+    app.send("\r").unwrap();
+    app.expect("i=type").unwrap();
+
+    std::thread::sleep(Duration::from_millis(500));
+
+    // Open task panel
+    app.send("X").unwrap();
+    app.expect("p=pipeline").unwrap();
+
+    // Switch to IssueDriven pipeline
+    app.send("p").unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    // Navigate to IssueDriven (index 1) and select
+    app.send("j").unwrap();
+    std::thread::sleep(Duration::from_millis(200));
+    app.send("\r").unwrap();
+
+    // IssueDriven asks for goal text — submit empty
+    app.expect("Esc=cancel").expect("goal input prompt not shown");
+    app.send("\r").unwrap();
+
+    // Wait for task panel to show tasks after pipeline switch
+    app.expect("d=delete").expect("task panel not shown after goal submit");
+
+    // Run the first pending task manually with Enter
+    app.send("\r").unwrap();
+
+    // Wait for mock to complete, then close task panel to reveal chat
+    std::thread::sleep(Duration::from_secs(2));
+    app.send("\x1b").unwrap();
+    std::thread::sleep(Duration::from_millis(500));
+
+    app.expect("Mock response")
+        .expect("mock claude didn't respond to pipeline task");
+
+    // Verify args — should NOT have --system-prompt
+    let args = std::fs::read_to_string(&args_file).unwrap_or_default();
+    assert!(
+        !args.contains("--system-prompt"),
+        "pipeline task should NOT include --system-prompt, got: {}",
+        args
+    );
+
+    app.send("q").unwrap();
+    app.expect(Eof).unwrap();
+    let _ = std::fs::remove_file(&args_file);
+}
+
 // ---------------------------------------------------------------------------
 // True E2E tests that call Claude Code headless.
 // These require a valid OAuth token and network access.
