@@ -464,10 +464,14 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
     let auto_len: usize = auto_spans.iter().map(|s| s.content.len()).sum();
 
     let Some(usage) = &app.usage_status else {
-        let left = " Loading usage...";
+        let (left, color) = if let Some(err) = &app.usage_error {
+            (format!(" {}", err.message()), Color::Yellow)
+        } else {
+            (" Loading usage...".to_string(), Color::DarkGray)
+        };
         let pad = (width as usize).saturating_sub(left.len() + gw_len + tone_len + task_len + pipe_len + auto_len + session_part.len());
         let mut spans = vec![
-            Span::styled(left, Style::default().fg(Color::DarkGray)),
+            Span::styled(left, Style::default().fg(color)),
         ];
         spans.extend(gw_spans);
         spans.extend(tone_spans);
@@ -741,7 +745,7 @@ fn truncate(s: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{App, ChatTone, InputMode, Mode, UsageStatus, View};
+    use crate::app::{App, ChatTone, InputMode, Mode, UsageError, UsageStatus, View};
     use crate::data::{ConversationMessage, SessionEntry};
     use crate::pipeline::AutoTask;
     use ratatui::{Terminal, backend::TestBackend, buffer::Buffer};
@@ -908,6 +912,18 @@ mod tests {
         terminal.draw(|f| draw(f, &mut app)).unwrap();
         let buf = terminal.backend().buffer();
         assert!(buffer_contains(buf, "Loading usage"));
+    }
+
+    #[test]
+    fn test_render_status_bar_rate_limited() {
+        let mut app = App::test_default();
+        app.mode = Mode::Chat;
+        app.usage_error = Some(UsageError::RateLimited);
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert!(buffer_contains(buf, "Rate limited"));
     }
 
     #[test]

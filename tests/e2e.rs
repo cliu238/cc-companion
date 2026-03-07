@@ -127,6 +127,25 @@ fn test_task_panel_opens_in_chat() {
     app.expect(Eof).unwrap();
 }
 
+/// Test that usage fetch resolves without crashing.
+/// The async usage fetch runs on app startup. By entering chat mode and
+/// waiting briefly, we verify the new Result-based fetch and error display
+/// code path doesn't panic. The status bar will show either usage data
+/// or an error message depending on OAuth token availability.
+#[test]
+fn test_usage_fetch_completes_without_crash() {
+    let mut app = spawn_app_with_timeout(15);
+    app.expect("Select Project").unwrap();
+    app.send("\r").unwrap();
+    // Enter chat mode — status bar with usage info is rendered here
+    app.expect("i=type").unwrap();
+    // Wait for async usage fetch to complete (token lookup + curl)
+    std::thread::sleep(Duration::from_secs(3));
+    // Verify app is still responsive after usage fetch resolved
+    app.send("q").unwrap();
+    app.expect(Eof).expect("app should exit cleanly after usage fetch");
+}
+
 /// Spawn the app with `claude` overridden by mock script.
 /// Returns (session, args_file_path).
 fn spawn_app_with_mock_claude(timeout_secs: u64) -> (OsSession, std::path::PathBuf) {
@@ -283,9 +302,10 @@ fn test_ignored_1_claude_round_trip() {
     step!(t, "done");
 }
 
-/// Test 3: Verify usage stats appear in the status bar.
+/// Test 3: Verify usage status resolves in the status bar.
 /// Usage is fetched on App::new() in the background. Enter chat mode
-/// (where the status bar is visible) and wait for "% used".
+/// (where the status bar is visible) and wait for a result.
+/// On success: "% used". On rate limit: "Rate limited". On failure: "Network error".
 #[test]
 #[ignore]
 fn test_ignored_3_usage_status_renders() {
@@ -297,11 +317,11 @@ fn test_ignored_3_usage_status_renders() {
     app.expect("Chat").unwrap();
 
     // Usage fetch runs in parallel on startup.
-    // Status bar initially shows "Loading usage" then switches to "% used".
-    // Check for "Loading" first (immediate), then wait for "% used" (API response).
+    // Status bar initially shows "Loading usage" then resolves to either
+    // usage data ("% used") or an error ("Rate limited" / "Network error").
     app.expect("Loading").expect("status bar never showed loading state");
     app.set_expect_timeout(Some(Duration::from_secs(30)));
-    // If API responds in time we see "% used"; if rate-limited, timeout is OK.
+    // Try success first; if rate-limited or error, that's also a valid outcome.
     let _ = app.expect("% used");
 
     app.send("q").unwrap();
