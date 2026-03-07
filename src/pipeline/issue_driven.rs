@@ -44,19 +44,15 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
             } else {
                 format!(" Use `gh issue list --label {}` to filter.", goal)
             };
-            let ts = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            let worktree_setup = format!(
-                "git -C {cwd} worktree add {cwd}/.worktrees/issue-{ts} -b issue-driven-{ts}",
-                cwd = project_cwd, ts = ts
-            );
             vec![AutoTask {
                 name: IMPLEMENT.into(),
                 prompt: format!(
                     "/superpowers:verification-before-completion\n\n\
-                     - Use `superpowers:using-git-worktrees` to fetch the next GitHub issue (gh cli).{label_filter}\n\n\
+                     - First, check for the next open GitHub issue (gh cli).{label_filter} \
+                     If there are no open issues, output ISSUES_EMPTY and stop.\n\n\
+                     - Create a worktree for this issue: \
+                     `git worktree add .worktrees/issue-<NUMBER> -b issue-driven-<NUMBER>` \
+                     (where <NUMBER> is the issue number), then cd into it.\n\n\
                      - Use `superpowers:test-driven-development` skill and the `test` skill to fix it \
                      following strict red->green->refactor TDD.\n\n\
                      - Unit tests alone are NOT sufficient for user-visible changes. \
@@ -71,7 +67,7 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
                 cwd: project_cwd.to_string(),
                 read_only: false,
                 resume: true,
-                setup: Some(worktree_setup),
+                setup: None,
                 use_advisor: false,
             }]
         }
@@ -138,10 +134,12 @@ mod tests {
         assert_eq!(tasks[0].name, IMPLEMENT);
         assert!(!tasks[0].read_only);
         assert!(tasks[0].resume);
-        assert!(tasks[0].setup.is_some());
+        assert!(tasks[0].setup.is_none());
         assert!(tasks[0].prompt.contains(output));
         assert!(tasks[0].prompt.contains("bug"));
         assert!(tasks[0].prompt.contains("NOT sufficient"));
+        assert!(tasks[0].prompt.contains("ISSUES_EMPTY"));
+        assert!(tasks[0].prompt.contains("git worktree add"));
     }
 
     #[test]
@@ -188,12 +186,11 @@ mod tests {
     }
 
     #[test]
-    fn test_worktree_setup_format() {
+    fn test_no_setup_worktree_leak() {
         let output = "39 passed";
         let tasks = on_complete(RUN_TESTS, output, "/tmp/proj", "");
-        let setup = tasks[0].setup.as_ref().unwrap();
-        assert!(setup.contains("git"));
-        assert!(setup.contains("worktree add"));
+        assert!(tasks[0].setup.is_none(), "worktree must be created by agent, not setup");
+        assert!(tasks[0].prompt.contains("git worktree add"));
     }
 
     #[test]
