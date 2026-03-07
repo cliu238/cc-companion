@@ -438,7 +438,7 @@ impl App {
 /// Fetch usage from the Anthropic OAuth API.
 fn fetch_oauth_usage() -> Result<UsageStatus, UsageError> {
     let token = crate::platform::get_oauth_token()
-        .ok_or_else(|| UsageError::Network("no oauth token".into()))?;
+        .ok_or_else(|| UsageError::Network("no OAuth token found".into()))?;
 
     let api_output = std::process::Command::new("curl")
         .args([
@@ -455,7 +455,7 @@ fn fetch_oauth_usage() -> Result<UsageStatus, UsageError> {
         .map_err(|e| UsageError::Network(e.to_string()))?;
 
     let raw = String::from_utf8_lossy(&api_output.stdout);
-    let raw = raw.trim();
+    let raw = raw.trim_end();
 
     // curl -w "\n%{http_code}" appends status code on last line
     let (body, status_str) = raw.rsplit_once('\n').unwrap_or((raw, ""));
@@ -641,8 +641,11 @@ mod tests {
         app.usage_error = Some(UsageError::RateLimited);
         app.usage_last_attempt = Some(Instant::now());
         app.usage_fetching = false;
-        // The periodic check should NOT trigger a re-fetch because last_attempt is recent
-        assert!(app.usage_last_attempt.unwrap().elapsed().as_secs() < 300);
+        app.usage_rx = None;
+        // Call tick: because last_attempt is very recent, backoff should prevent re-fetch
+        app.tick();
+        assert!(!app.usage_fetching);
+        assert!(app.usage_rx.is_none());
     }
 }
 
