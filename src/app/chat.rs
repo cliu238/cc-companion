@@ -11,6 +11,60 @@ use crate::pipeline::Pipeline;
 
 use super::{App, InputMode, BASE_SYSTEM_PROMPT};
 
+pub(crate) struct GatewayConfig {
+    pub url: String,
+    pub headers: Option<String>,
+}
+
+pub(crate) struct SpawnConfig {
+    pub msg: String,
+    pub resume_session: Option<String>,
+    pub read_only: bool,
+    pub cwd: Option<String>,
+    pub model: Option<String>,
+    pub setup: Option<String>,
+    pub system_prompt: Option<String>,
+    pub gateway: Option<GatewayConfig>,
+}
+
+pub(crate) fn build_claude_cmd(config: &SpawnConfig) -> Command {
+    let mut cmd = Command::new("claude");
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+    if let Some(dir) = &config.cwd {
+        if !dir.is_empty() {
+            cmd.current_dir(dir);
+            cmd.arg("--add-dir").arg(dir);
+        }
+    }
+    if let Some(gw) = &config.gateway {
+        cmd.env("ANTHROPIC_BASE_URL", &gw.url);
+        if let Some(h) = &gw.headers {
+            cmd.env("ANTHROPIC_CUSTOM_HEADERS", h);
+        }
+    } else {
+        cmd.env_remove("ANTHROPIC_BASE_URL");
+        cmd.env_remove("ANTHROPIC_CUSTOM_HEADERS");
+    }
+    if let Some(m) = &config.model {
+        cmd.arg("--model").arg(m);
+    }
+    if let Some(sp) = &config.system_prompt {
+        cmd.arg("--system-prompt").arg(sp);
+    }
+    cmd.arg("-p").arg(&config.msg);
+    cmd.arg("--output-format").arg("json");
+    cmd.arg("--permission-mode").arg("dontAsk");
+    if config.read_only {
+        cmd.arg("--disallowedTools")
+            .arg("Write,Edit,MultiEdit,TodoWrite");
+    }
+    if let Some(id) = &config.resume_session {
+        cmd.arg("--resume").arg(id);
+    }
+    cmd
+}
+
 impl App {
     pub(crate) fn handle_chat_normal_key(&mut self, key: KeyEvent) {
         self.chat.hint = None;
@@ -342,5 +396,91 @@ impl App {
             InputMode::PathInput => self.path_input.push_str(&text),
             InputMode::Normal => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn base_config() -> SpawnConfig {
+        SpawnConfig {
+            msg: "hello".into(),
+            resume_session: None,
+            read_only: false,
+            cwd: None,
+            model: None,
+            setup: None,
+            system_prompt: None,
+            gateway: None,
+        }
+    }
+
+    #[test]
+    fn test_build_cmd_no_system_prompt() {
+        let config = base_config();
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(!args.contains(&"--system-prompt".as_ref()),
+            "should not have --system-prompt when system_prompt is None");
+        assert!(args.contains(&"-p".as_ref()));
+        assert!(args.contains(&"hello".as_ref()));
+    }
+
+    #[test]
+    fn test_build_cmd_with_system_prompt() {
+        let mut config = base_config();
+        config.system_prompt = Some("You are an advisor.".into());
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(args.contains(&"--system-prompt".as_ref()));
+        assert!(args.contains(&"You are an advisor.".as_ref()));
+    }
+
+    #[test]
+    fn test_build_cmd_read_only() {
+        let mut config = base_config();
+        config.read_only = true;
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(args.contains(&"--disallowedTools".as_ref()));
+    }
+
+    #[test]
+    fn test_build_cmd_not_read_only() {
+        let config = base_config();
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(!args.contains(&"--disallowedTools".as_ref()));
+    }
+
+    #[test]
+    fn test_build_cmd_with_resume() {
+        let mut config = base_config();
+        config.resume_session = Some("sess-123".into());
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(args.contains(&"--resume".as_ref()));
+        assert!(args.contains(&"sess-123".as_ref()));
+    }
+
+    #[test]
+    fn test_build_cmd_with_model() {
+        let mut config = base_config();
+        config.model = Some("claude-sonnet-4-6".into());
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(args.contains(&"--model".as_ref()));
+        assert!(args.contains(&"claude-sonnet-4-6".as_ref()));
+    }
+
+    #[test]
+    fn test_build_cmd_with_cwd() {
+        let mut config = base_config();
+        config.cwd = Some("/tmp/proj".into());
+        let cmd = build_claude_cmd(&config);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(args.contains(&"--add-dir".as_ref()));
+        assert!(args.contains(&"/tmp/proj".as_ref()));
     }
 }
