@@ -51,6 +51,7 @@ impl ChatTone {
     }
 }
 
+#[derive(Debug)]
 pub enum UsageError {
     RateLimited,
     Network(String),
@@ -463,7 +464,10 @@ fn fetch_oauth_usage() -> Result<UsageStatus, UsageError> {
     if http_status == 429 {
         return Err(UsageError::RateLimited);
     }
-    if http_status != 200 && http_status != 0 {
+    if http_status == 0 {
+        return Err(UsageError::Network("no HTTP response".into()));
+    }
+    if http_status != 200 {
         return Err(UsageError::Network(format!("HTTP {}", http_status)));
     }
 
