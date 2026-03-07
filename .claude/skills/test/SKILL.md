@@ -186,3 +186,47 @@ macro_rules! step {
 | Testing claude from Claude Code Bash | Write ignored tests, run from normal terminal |
 | `expect()` for text in same screen region | Use unique substring not in previous frame |
 | Sending keys immediately after `expect()` | Add `sleep()` between mode transitions |
+
+## Mock CLI Testing
+
+For testing CLI subprocess behavior without real API calls, use a mock script that mimics the CLI's output format.
+
+### Pattern: mock script + PATH override
+
+1. Create `tests/fixtures/mock_claude` (executable shell script):
+   - Reads args, writes them to `$MOCK_CLAUDE_ARGS_FILE` for later assertion
+   - Returns valid JSON in the expected output format
+
+2. Create a symlink `tests/fixtures/claude -> mock_claude` so PATH override works.
+
+3. In PTY test, override PATH so `claude` resolves to the mock:
+
+```rust
+fn spawn_app_with_mock_claude(timeout_secs: u64) -> (OsSession, PathBuf) {
+    let mock_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let args_file = std::env::temp_dir().join(format!("mock_args_{}", std::process::id()));
+    let path = format!("{}:{}", mock_dir.display(), std::env::var("PATH").unwrap_or_default());
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_my_app"));
+    cmd.env("PATH", &path);
+    cmd.env("MOCK_CLAUDE_ARGS_FILE", &args_file);
+    cmd.env_remove("CLAUDECODE");
+
+    let mut session = Session::spawn(cmd).unwrap();
+    session.set_expect_timeout(Some(Duration::from_secs(timeout_secs)));
+    (session, args_file)
+}
+```
+
+4. After the interaction, read `args_file` to verify which CLI flags were passed:
+
+```rust
+let args = std::fs::read_to_string(&args_file).unwrap_or_default();
+assert!(args.contains("--system-prompt"), "expected --system-prompt in args");
+```
+
+### Key points
+- Mock script must output the exact JSON format the app expects (`[{"type":"init",...},{"type":"result",...}]`)
+- Clean up `args_file` at end of test
+- Use unique filename (PID or atomic counter) to avoid collisions in parallel test runs
+- Create symlink `tests/fixtures/claude -> mock_claude` since the app invokes `claude` by name
