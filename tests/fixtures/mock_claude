@@ -1,9 +1,20 @@
 #!/bin/bash
-# Mock claude CLI for testing. Writes received args to $MOCK_CLAUDE_ARGS_FILE
-# and returns a valid JSON response.
+# Mock claude CLI for testing. Stateful: detects pipeline step from -p arg,
+# tracks call count, returns step-specific responses.
 
+# Write all args for assertion (append so all calls are recorded)
 if [ -n "$MOCK_CLAUDE_ARGS_FILE" ]; then
-    echo "$@" > "$MOCK_CLAUDE_ARGS_FILE"
+    echo "$@" >> "$MOCK_CLAUDE_ARGS_FILE"
+fi
+
+# Track call count
+COUNT=0
+if [ -n "$MOCK_CLAUDE_CALL_COUNT" ]; then
+    if [ -f "$MOCK_CLAUDE_CALL_COUNT" ]; then
+        COUNT=$(cat "$MOCK_CLAUDE_CALL_COUNT")
+    fi
+    COUNT=$((COUNT + 1))
+    echo "$COUNT" > "$MOCK_CLAUDE_CALL_COUNT"
 fi
 
 # Extract the message from -p argument
@@ -15,11 +26,43 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# Optional delay for testing cancel
+if [ -n "$MOCK_CLAUDE_DELAY" ]; then
+    sleep "$MOCK_CLAUDE_DELAY"
+fi
+
 SESSION_ID="mock-session-001"
+
+# Detect pipeline step and return step-specific result.
+# Order matters: more specific patterns must come before broader ones.
+# implement-issue's prompt contains "test" and "skill" so must be matched
+# before the run-tests pattern which also matches on those words.
+RESULT="Mock response to: $MSG"
+case "$MSG" in
+    *"Load"*"/domain-knowledge"*|*"Load"*"skills"*)
+        if [ "$COUNT" -ge 6 ]; then
+            RESULT="ISSUES_EMPTY"
+        else
+            RESULT="Skills loaded successfully"
+        fi
+        ;;
+    *"finishing-a-development-branch"*)
+        RESULT="Branch merged and cleaned up"
+        ;;
+    *"verification-before-completion"*"GitHub issue"*|*"fetch the next"*)
+        RESULT="PR #42 created for issue #7"
+        ;;
+    *"verification-before-completion"*"full test suite"*)
+        RESULT="All 42 tests pass"
+        ;;
+    *"Skill tool"*"test"*"skill"*"run all tests"*|*"run all tests"*)
+        RESULT="39 passed; 0 failed"
+        ;;
+esac
 
 cat <<ENDJSON
 [
   {"type":"init","session_id":"$SESSION_ID"},
-  {"type":"result","session_id":"$SESSION_ID","result":"Mock response to: $MSG"}
+  {"type":"result","session_id":"$SESSION_ID","result":"$RESULT"}
 ]
 ENDJSON
