@@ -954,6 +954,7 @@ mod tests {
             read_only: false,
             resume: false,
             setup: None,
+            use_advisor: false,
         }];
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();

@@ -17,6 +17,7 @@ pub struct AutoTask {
     pub read_only: bool,
     pub resume: bool,
     pub setup: Option<String>,
+    pub use_advisor: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -140,6 +141,22 @@ mod tests {
         sched.complete_running("FAILED=compilation error", "/tmp");
         // Should NOT cycle: halt signal stops restart
         assert!(sched.tasks.is_empty(), "IssueDriven must halt when FAILED=");
+    }
+
+    #[test]
+    fn test_issue_driven_tasks_skip_advisor() {
+        let tasks = Pipeline::IssueDriven.initial_tasks("/tmp/proj", "");
+        for task in &tasks {
+            assert!(!task.use_advisor, "IssueDriven task '{}' should not use advisor", task.name);
+        }
+    }
+
+    #[test]
+    fn test_example_tasks_use_advisor() {
+        let tasks = Pipeline::Example.initial_tasks("/tmp/proj", "");
+        for task in &tasks {
+            assert!(task.use_advisor, "Example task '{}' should use advisor", task.name);
+        }
     }
 
     #[test]

@@ -15,6 +15,7 @@ pub fn initial_tasks(project_cwd: &str, _goal: &str) -> Vec<AutoTask> {
         read_only: false,
         resume: false,
         setup: None,
+        use_advisor: false,
     }]
 }
 
@@ -34,6 +35,7 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
             read_only: false,
             resume: false,
             setup: None,
+            use_advisor: false,
         }],
 
         RUN_TESTS => {
@@ -70,6 +72,7 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
                 read_only: false,
                 resume: true,
                 setup: Some(worktree_setup),
+                use_advisor: false,
             }]
         }
 
@@ -86,6 +89,7 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
             read_only: false,
             resume: true,
             setup: None,
+            use_advisor: false,
         }],
 
         VERIFY => vec![AutoTask {
@@ -95,6 +99,7 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
             read_only: false,
             resume: true,
             setup: None,
+            use_advisor: false,
         }],
 
         FINISH => vec![],

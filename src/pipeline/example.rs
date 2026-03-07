@@ -10,6 +10,7 @@ pub fn tasks(project_cwd: &str) -> Vec<AutoTask> {
             read_only: true,
             resume: true,
             setup: None,
+            use_advisor: true,
         },
         AutoTask {
             name: "write tests".into(),
@@ -18,6 +19,7 @@ pub fn tasks(project_cwd: &str) -> Vec<AutoTask> {
             read_only: true,
             resume: true,
             setup: None,
+            use_advisor: true,
         },
         AutoTask {
             name: "refactor suggestions".into(),
@@ -26,6 +28,7 @@ pub fn tasks(project_cwd: &str) -> Vec<AutoTask> {
             read_only: true,
             resume: true,
             setup: None,
+            use_advisor: true,
         },
         AutoTask {
             name: "update docs".into(),
@@ -34,6 +37,7 @@ pub fn tasks(project_cwd: &str) -> Vec<AutoTask> {
             read_only: true,
             resume: true,
             setup: None,
+            use_advisor: true,
         },
     ]
 }
