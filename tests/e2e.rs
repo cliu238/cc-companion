@@ -303,3 +303,48 @@ fn test_ignored_3_usage_status_renders() {
     app.send("q").unwrap();
     app.expect(Eof).unwrap();
 }
+
+/// Test 4: Pipeline task executes successfully without Advisor prompt blocking it.
+/// Proves the fix for Issue #5 works end-to-end with real Claude.
+#[test]
+#[ignore]
+fn test_ignored_4_pipeline_task_executes() {
+    let t = Instant::now();
+    step!(t, "spawning app");
+    let mut app = spawn_app_with_timeout(120);
+
+    step!(t, "selecting project");
+    app.expect("Select Project").unwrap();
+    app.send("\r").unwrap();
+    app.expect("i=type").unwrap();
+
+    std::thread::sleep(Duration::from_secs(1));
+
+    step!(t, "opening task panel");
+    app.send("X").unwrap();
+    app.expect("p=pipeline").unwrap();
+
+    step!(t, "switching to IssueDriven pipeline");
+    app.send("p").unwrap();
+    std::thread::sleep(Duration::from_millis(500));
+    app.send("j").unwrap();
+    app.send("\r").unwrap();
+    std::thread::sleep(Duration::from_millis(500));
+    app.send("\r").unwrap(); // submit empty goal
+
+    std::thread::sleep(Duration::from_millis(500));
+
+    step!(t, "running first task");
+    app.send("\r").unwrap();
+
+    // Close task panel so chat area is visible
+    app.send("\x1b").unwrap();
+
+    step!(t, "waiting for response (up to 120s)");
+    app.expect("cc-companion:").expect("pipeline task got no response — Claude may have refused");
+
+    step!(t, "quitting");
+    app.send("q").unwrap();
+    app.expect(Eof).unwrap();
+    step!(t, "done");
+}
