@@ -77,6 +77,146 @@ async def make_request(client: httpx.AsyncClient, token: str) -> dict:
         return {"timestamp": ts, "status": 0, "error": str(e)}
 
 
+class Logger:
+    """Append-only logger that writes each request result to file immediately."""
+
+    def __init__(self, output_dir: str):
+        self.dir = Path(output_dir)
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.log_path = self.dir / "log.txt"
+        self.entries: list[dict] = []
+
+    def log(self, phase: str, entry: dict):
+        """Log a request result. Writes to file immediately."""
+        entry["phase"] = phase
+        self.entries.append(entry)
+        line = json.dumps(entry)
+        with open(self.log_path, "a") as f:
+            f.write(line + "\n")
+        # Also print to console
+        status = entry.get("status", "?")
+        rl = entry.get("rate_limit_headers", {})
+        rl_str = f" headers={rl}" if rl else ""
+        print(f"  [{entry['timestamp']}] HTTP {status}{rl_str}")
+
+    def phase_summary(self, phase: str) -> dict:
+        """Return summary stats for a phase."""
+        phase_entries = [e for e in self.entries if e.get("phase") == phase]
+        statuses = [e.get("status", 0) for e in phase_entries]
+        return {
+            "phase": phase,
+            "total": len(phase_entries),
+            "success": statuses.count(200),
+            "rate_limited": statuses.count(429),
+            "errors": len([s for s in statuses if s not in (200, 429)]),
+            "headers_seen": [
+                e.get("rate_limit_headers", {})
+                for e in phase_entries
+                if e.get("rate_limit_headers")
+            ],
+        }
+
+    def rolling_stats(self, window_seconds: float) -> dict:
+        """Count requests in the last `window_seconds` based on logged timestamps."""
+        now = datetime.now(timezone.utc)
+        count = 0
+        for e in reversed(self.entries):
+            ts = datetime.fromisoformat(e["timestamp"])
+            if (now - ts).total_seconds() <= window_seconds:
+                count += 1
+            else:
+                break
+        return {"window_s": window_seconds, "count": count}
+
+    def infer_model(self) -> str:
+        """Analyze endurance data to infer the rate limit model."""
+        endurance = [e for e in self.entries if e.get("phase") == "endurance"]
+        if not endurance:
+            return "unknown (no endurance data)"
+
+        four29s = [e for e in endurance if e.get("status") == 429]
+        if not four29s:
+            return "no 429 observed in endurance — interval is safe"
+
+        nums = [e.get("request_num") for e in four29s if e.get("request_num")]
+        if nums and len(set(nums)) == 1:
+            return f"token_bucket (capacity ~{nums[0] - 1}, 429 always at request #{nums[0]})"
+
+        times = []
+        for e in four29s:
+            ts = datetime.fromisoformat(e["timestamp"])
+            times.append(ts.second)
+        if times and max(times) - min(times) <= 5:
+            return f"fixed_window (429s cluster near second {int(sum(times)/len(times))})"
+
+        rolling_counts = [e.get("rolling_1min", 0) for e in four29s]
+        if rolling_counts and len(set(rolling_counts)) == 1:
+            return f"sliding_window (429 when requests_in_1min >= {rolling_counts[0]})"
+
+        return "inconclusive (429 pattern doesn't match known models)"
+
+    def write_summary(self):
+        """Write final summary to summary.txt."""
+        summary_path = self.dir / "summary.txt"
+        phases = sorted(set(e.get("phase", "") for e in self.entries))
+        lines = ["=== Usage API Rate Limit Experiment Summary ===\n"]
+        if self.entries:
+            lines.append(f"Experiment start: {self.entries[0].get('timestamp', '?')}")
+            lines.append(f"Experiment end:   {self.entries[-1].get('timestamp', '?')}")
+        for phase in phases:
+            s = self.phase_summary(phase)
+            lines.append(f"\n--- {phase} ---")
+            lines.append(f"  Requests: {s['total']}")
+            lines.append(f"  200 OK:   {s['success']}")
+            lines.append(f"  429:      {s['rate_limited']}")
+            lines.append(f"  Errors:   {s['errors']}")
+            if s["headers_seen"]:
+                lines.append(f"  Rate limit headers observed: {s['headers_seen']}")
+        model = self.infer_model()
+        lines.append(f"\n--- Rate Limit Model Inference ---")
+        lines.append(f"  {model}")
+        lines.append(f"\nNote: Run at different times of day to check for adaptive behavior.")
+        summary_path.write_text("\n".join(lines) + "\n")
+        print(f"\nSummary written to {summary_path}")
+
+
+class CircuitBreaker:
+    """Safety fuse that terminates experiment on dangerous signals."""
+
+    def __init__(self):
+        self.consecutive_429s = 0
+        self.total_429s = 0
+        self.tripped = False
+        self.trip_reason = ""
+
+    def record(self, status: int) -> str | None:
+        """Record a status code. Returns action: None, 'pause', or 'terminate'."""
+        if status in (401, 403):
+            self.tripped = True
+            self.trip_reason = f"HTTP {status} — possible account issue, terminating immediately"
+            return "terminate"
+
+        if status >= 500 or status == 0:
+            self.tripped = True
+            self.trip_reason = f"HTTP {status} — server error or no response, terminating"
+            return "terminate"
+
+        if status == 429:
+            self.consecutive_429s += 1
+            self.total_429s += 1
+            if self.total_429s >= 5:
+                self.tripped = True
+                self.trip_reason = f"Total 429s reached {self.total_429s}, terminating"
+                return "terminate"
+            if self.consecutive_429s >= 2:
+                return "pause"
+            return None
+
+        # Success — reset consecutive counter
+        self.consecutive_429s = 0
+        return None
+
+
 async def run(args: argparse.Namespace) -> None:
     print(f"Output dir: {args.output_dir}")
     print("TODO: implement phases")
