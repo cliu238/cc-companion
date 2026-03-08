@@ -277,7 +277,7 @@ class CircuitBreaker:
         if status == 429:
             self.consecutive_429s += 1
             self.total_429s += 1
-            if self.total_429s >= 5:
+            if self.total_429s >= 15:
                 self.tripped = True
                 self.trip_reason = f"Total 429s reached {self.total_429s}, terminating"
                 return "terminate"
@@ -328,7 +328,7 @@ class Checkpoint:
 STEADY_STATE_INTERVALS = [600, 300, 120, 60]  # seconds: 10min, 5min, 2min, 1min
 STEADY_STATE_REQUESTS_PER_INTERVAL = 5
 STEADY_STATE_MAX_DURATION = 4 * 3600  # 4 hours hard cap
-PAUSE_DURATION = 600  # 10 minutes
+PAUSE_DURATION = 1800  # 30 minutes (data shows 15min pause still gets 429)
 
 
 async def phase_steady_state(
@@ -464,10 +464,12 @@ async def phase_endurance(
         if result.get("status") == 429 and first_429_at is None:
             first_429_at = i + 1
             print(f"  First 429 at request #{i + 1} — interval {interval}s is NOT fully safe")
-            # Don't break — keep going to collect more data points for model inference
-            # But increase interval to avoid burning through circuit breaker
-            interval = max(interval, 300)
+            # Data shows sliding window ~60min. Back off aggressively and wait
+            # for window to slide before resuming data collection
+            interval = max(interval, 600)
             print(f"  Backing off to {interval}s for remaining requests")
+            print(f"  Waiting {PAUSE_DURATION}s for rate limit window to slide...")
+            await dry_sleep(PAUSE_DURATION)
 
     summary = logger.phase_summary(phase)
     model = logger.infer_model()
@@ -487,8 +489,8 @@ async def phase_endurance(
     }
 
 
-RECOVERY_WAIT_TIMES = [30, 60, 120, 300]  # seconds to try after a 429
-RECOVERY_MAX_DURATION = 1800  # 30 minutes
+RECOVERY_WAIT_TIMES = [60, 300, 600, 1800, 3600]  # 1min, 5min, 10min, 30min, 60min
+RECOVERY_MAX_DURATION = 2 * 3600  # 2 hours (window may be up to 60min)
 
 
 async def phase_recovery(
