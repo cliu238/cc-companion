@@ -3,8 +3,10 @@
 import argparse
 import asyncio
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -86,9 +88,17 @@ class Logger:
         self.log_path = self.dir / "log.txt"
         self.entries: list[dict] = []
 
+    def reload(self):
+        """Reload entries from log file (for --resume)."""
+        if self.log_path.exists():
+            for line in self.log_path.read_text().splitlines():
+                if line.strip():
+                    self.entries.append(json.loads(line))
+            print(f"  Reloaded {len(self.entries)} entries from {self.log_path}")
+
     def log(self, phase: str, entry: dict):
         """Log a request result. Writes to file immediately."""
-        entry["phase"] = phase
+        entry = {**entry, "phase": phase}
         self.entries.append(entry)
         line = json.dumps(entry)
         with open(self.log_path, "a") as f:
@@ -232,7 +242,10 @@ class Checkpoint:
         return False
 
     def save(self):
-        self.path.write_text(json.dumps(self.state, indent=2) + "\n")
+        # Atomic write: temp file + rename to avoid corruption on crash
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.state, indent=2) + "\n")
+        os.rename(tmp, self.path)
 
     def set_phase(self, phase: str, step: int = 0):
         self.state["phase"] = phase
