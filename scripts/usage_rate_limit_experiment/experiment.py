@@ -217,6 +217,37 @@ class CircuitBreaker:
         return None
 
 
+class Checkpoint:
+    """Tracks experiment progress for resume after crash."""
+
+    def __init__(self, output_dir: str):
+        self.path = Path(output_dir) / "checkpoint.json"
+        self.state: dict = {"phase": "steady_state", "step": 0, "completed_phases": []}
+
+    def load(self) -> bool:
+        """Load checkpoint. Returns True if found."""
+        if self.path.exists():
+            self.state = json.loads(self.path.read_text())
+            return True
+        return False
+
+    def save(self):
+        self.path.write_text(json.dumps(self.state, indent=2) + "\n")
+
+    def set_phase(self, phase: str, step: int = 0):
+        self.state["phase"] = phase
+        self.state["step"] = step
+        self.save()
+
+    def complete_phase(self, phase: str):
+        if phase not in self.state["completed_phases"]:
+            self.state["completed_phases"].append(phase)
+        self.save()
+
+    def is_completed(self, phase: str) -> bool:
+        return phase in self.state["completed_phases"]
+
+
 async def run(args: argparse.Namespace) -> None:
     print(f"Output dir: {args.output_dir}")
     print("TODO: implement phases")
