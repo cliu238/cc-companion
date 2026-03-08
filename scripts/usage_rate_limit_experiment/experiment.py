@@ -55,25 +55,63 @@ async def dry_sleep(seconds: float):
     await asyncio.sleep(0.01 if DRY_RUN else seconds)
 
 
-async def make_request(client: httpx.AsyncClient, token: str) -> dict:
-    """Send one request to the usage API. Returns a result dict (never raises)."""
+class TokenHolder:
+    """Mutable token state — supports refresh on 401."""
+
+    def __init__(self, token: str):
+        self.token = token
+        self.refresh_count = 0
+
+    @property
+    def fingerprint(self) -> str:
+        """Short identifier for logging (first 8 chars)."""
+        return self.token[:8] if len(self.token) >= 8 else self.token
+
+    def refresh(self) -> bool:
+        """Re-read token from source. Returns True if token changed."""
+        new_token = read_token()
+        if new_token and new_token != self.token:
+            self.token = new_token
+            self.refresh_count += 1
+            print(f"  Token refreshed: {self.fingerprint}... (refresh #{self.refresh_count})")
+            return True
+        return False
+
+
+def _build_headers(token: str) -> dict:
+    return {
+        "Accept": "application/json",
+        "User-Agent": "claude-code",
+        "Authorization": f"Bearer {token}",
+        "anthropic-beta": "oauth-2025-04-20",
+    }
+
+
+async def make_request(client: httpx.AsyncClient, th: TokenHolder) -> dict:
+    """Send one request to the usage API. Returns a result dict (never raises).
+
+    On 401, attempts to refresh the token and retry once.
+    Logs token fingerprint to help analyze per-token rate limiting.
+    """
     ts = datetime.now(timezone.utc).isoformat()
     if DRY_RUN:
         import random
         fake_status = random.choices([200, 429], weights=[0.8, 0.2])[0]
-        return {"timestamp": ts, "status": fake_status, "rate_limit_headers": {}, "body_preview": "(dry run)"}
+        return {"timestamp": ts, "status": fake_status, "rate_limit_headers": {},
+                "body_preview": "(dry run)", "token_id": th.fingerprint}
     try:
         resp = await client.get(
-            API_URL,
-            headers={
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "User-Agent": "claude-code",
-                "Authorization": f"Bearer {token}",
-                "anthropic-beta": "oauth-2025-04-20",
-            },
-            timeout=REQUEST_TIMEOUT,
+            API_URL, headers=_build_headers(th.token), timeout=REQUEST_TIMEOUT,
         )
+
+        # On 401, try refreshing the token and retry once
+        if resp.status_code == 401:
+            if th.refresh():
+                resp = await client.get(
+                    API_URL, headers=_build_headers(th.token), timeout=REQUEST_TIMEOUT,
+                )
+            # If refresh failed or retry still 401, return as-is
+
         # Extract rate limit headers if present
         rl_headers = {
             k: v for k, v in resp.headers.items()
@@ -84,11 +122,12 @@ async def make_request(client: httpx.AsyncClient, token: str) -> dict:
             "status": resp.status_code,
             "rate_limit_headers": rl_headers,
             "body_preview": resp.text[:200],
+            "token_id": th.fingerprint,
         }
     except httpx.TimeoutException:
-        return {"timestamp": ts, "status": 0, "error": "timeout"}
+        return {"timestamp": ts, "status": 0, "error": "timeout", "token_id": th.fingerprint}
     except httpx.HTTPError as e:
-        return {"timestamp": ts, "status": 0, "error": str(e)}
+        return {"timestamp": ts, "status": 0, "error": str(e), "token_id": th.fingerprint}
 
 
 class Logger:
@@ -212,10 +251,19 @@ class CircuitBreaker:
         self.trip_reason = ""
 
     def record(self, status: int) -> str | None:
-        """Record a status code. Returns action: None, 'pause', or 'terminate'."""
-        if status in (401, 403):
+        """Record a status code. Returns action: None, 'pause', or 'terminate'.
+
+        Note: 401 is handled in make_request (token refresh + retry).
+        If a 401 reaches here, the refresh already failed.
+        """
+        if status == 403:
             self.tripped = True
-            self.trip_reason = f"HTTP {status} — possible account issue, terminating immediately"
+            self.trip_reason = "HTTP 403 — forbidden, possible IP ban, terminating immediately"
+            return "terminate"
+
+        if status == 401:
+            self.tripped = True
+            self.trip_reason = "HTTP 401 — token refresh failed, terminating"
             return "terminate"
 
         if status >= 500 or status == 0:
@@ -282,7 +330,7 @@ PAUSE_DURATION = 600  # 10 minutes
 
 async def phase_steady_state(
     client: httpx.AsyncClient,
-    token: str,
+    th: TokenHolder,
     logger: Logger,
     breaker: CircuitBreaker,
     checkpoint: Checkpoint,
@@ -314,7 +362,7 @@ async def phase_steady_state(
                 print(f"  Waiting {interval}s...")
                 await dry_sleep(interval)
 
-            result = await make_request(client, token)
+            result = await make_request(client, th)
             logger.log(phase, {**result, "interval": interval, "request_num": i + 1})
 
             action = breaker.record(result.get("status", 0))
@@ -356,7 +404,7 @@ ENDURANCE_MAX_DURATION = 2 * 3600  # 2 hours hard cap
 
 async def phase_endurance(
     client: httpx.AsyncClient,
-    token: str,
+    th: TokenHolder,
     logger: Logger,
     breaker: CircuitBreaker,
     checkpoint: Checkpoint,
@@ -386,7 +434,7 @@ async def phase_endurance(
             print(f"  Waiting {interval}s... ({i}/{ENDURANCE_REQUESTS})")
             await dry_sleep(interval)
 
-        result = await make_request(client, token)
+        result = await make_request(client, th)
 
         # Add rolling stats for model inference
         rolling_1m = logger.rolling_stats(60)["count"]
@@ -442,7 +490,7 @@ RECOVERY_MAX_DURATION = 1800  # 30 minutes
 
 async def phase_recovery(
     client: httpx.AsyncClient,
-    token: str,
+    th: TokenHolder,
     logger: Logger,
     breaker: CircuitBreaker,
     checkpoint: Checkpoint,
@@ -459,7 +507,7 @@ async def phase_recovery(
     print("  Triggering 429 with rapid requests...")
     triggered = False
     for i in range(3):
-        result = await make_request(client, token)
+        result = await make_request(client, th)
         logger.log(phase, {**result, "step": "trigger", "attempt": i + 1})
 
         action = breaker.record(result.get("status", 0))
@@ -497,7 +545,7 @@ async def phase_recovery(
         print(f"  Waiting {wait_time}s before retry...")
         await dry_sleep(wait_time)
 
-        result = await make_request(client, token)
+        result = await make_request(client, th)
         logger.log(phase, {**result, "step": "recovery", "wait_time": wait_time})
 
         action = breaker.record(result.get("status", 0))
@@ -533,7 +581,7 @@ BURST_INTERVAL = 1  # seconds between burst requests
 
 async def phase_burst(
     client: httpx.AsyncClient,
-    token: str,
+    th: TokenHolder,
     logger: Logger,
     breaker: CircuitBreaker,
     checkpoint: Checkpoint,
@@ -554,7 +602,7 @@ async def phase_burst(
         if i > 0:
             await dry_sleep(BURST_INTERVAL)
 
-        result = await make_request(client, token)
+        result = await make_request(client, th)
         logger.log(phase, {**result, "burst_num": i + 1})
 
         action = breaker.record(result.get("status", 0))
@@ -592,14 +640,15 @@ async def run(args: argparse.Namespace) -> None:
 
     # Read token (skip in dry-run mode)
     if DRY_RUN:
-        token = "dry-run-placeholder"
+        th = TokenHolder("dry-run-placeholder-token-xxxx")
     else:
         token = read_token()
         if not token:
             print("ERROR: No OAuth token found.")
             print("  Checked: macOS Keychain ('claude-ai-oauth') and ~/.claude/.credentials.json")
             sys.exit(1)
-        print(f"Token: {token[:8]}...{token[-4:]}")
+        th = TokenHolder(token)
+        print(f"Token: {th.fingerprint}...{th.token[-4:]}")
 
     # Init components
     logger = Logger(args.output_dir)
@@ -619,7 +668,7 @@ async def run(args: argparse.Namespace) -> None:
         # Phase 1: Steady-state
         if not checkpoint.is_completed("steady_state"):
             checkpoint.set_phase("steady_state")
-            min_interval = await phase_steady_state(client, token, logger, breaker, checkpoint)
+            min_interval = await phase_steady_state(client, th, logger, breaker, checkpoint)
             results["min_safe_interval"] = min_interval
         else:
             print("Skipping steady_state (already completed)")
@@ -630,7 +679,7 @@ async def run(args: argparse.Namespace) -> None:
             checkpoint.set_phase("endurance")
             checkpoint.state["min_safe_interval"] = min_interval
             checkpoint.save()
-            endurance_result = await phase_endurance(client, token, logger, breaker, checkpoint, min_interval)
+            endurance_result = await phase_endurance(client, th, logger, breaker, checkpoint, min_interval)
             results["endurance"] = endurance_result
             results["inferred_model"] = endurance_result.get("model", "unknown")
         elif not min_interval:
@@ -639,7 +688,7 @@ async def run(args: argparse.Namespace) -> None:
         # Phase 2: Recovery
         if not breaker.tripped and not checkpoint.is_completed("recovery"):
             checkpoint.set_phase("recovery")
-            recovery_time = await phase_recovery(client, token, logger, breaker, checkpoint)
+            recovery_time = await phase_recovery(client, th, logger, breaker, checkpoint)
             results["min_recovery_time"] = recovery_time
         else:
             if breaker.tripped:
@@ -648,7 +697,7 @@ async def run(args: argparse.Namespace) -> None:
         # Phase 3: Burst (opt-in)
         if args.enable_burst and not breaker.tripped and not checkpoint.is_completed("burst"):
             checkpoint.set_phase("burst")
-            threshold = await phase_burst(client, token, logger, breaker, checkpoint)
+            threshold = await phase_burst(client, th, logger, breaker, checkpoint)
             results["burst_threshold"] = threshold
         elif args.enable_burst and breaker.tripped:
             print(f"\nSkipping burst: {breaker.trip_reason}")
