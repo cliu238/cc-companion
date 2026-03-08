@@ -515,6 +515,63 @@ async def phase_recovery(
     return min_recovery
 
 
+BURST_MAX_REQUESTS = 10
+BURST_INTERVAL = 1  # seconds between burst requests
+
+
+async def phase_burst(
+    client: httpx.AsyncClient,
+    token: str,
+    logger: Logger,
+    breaker: CircuitBreaker,
+    checkpoint: Checkpoint,
+) -> int | None:
+    """Run burst phase. Returns number of requests before first 429, or None."""
+    phase = "burst"
+    print(f"\n{'='*50}")
+    print(f"Phase 3: Burst (opt-in)")
+    print(f"Sending up to {BURST_MAX_REQUESTS} requests at {BURST_INTERVAL}s intervals")
+    print(f"{'='*50}")
+
+    threshold = None
+
+    for i in range(BURST_MAX_REQUESTS):
+        if breaker.tripped:
+            break
+
+        if i > 0:
+            await asyncio.sleep(BURST_INTERVAL)
+
+        result = await make_request(client, token)
+        logger.log(phase, {**result, "burst_num": i + 1})
+
+        action = breaker.record(result.get("status", 0))
+        if action == "terminate":
+            print(f"  FUSE TRIPPED: {breaker.trip_reason}")
+            break
+
+        if result.get("status") == 429:
+            threshold = i  # i requests succeeded before the 429
+            print(f"  429 hit after {i} successful requests")
+            break
+
+    if threshold is None and not breaker.tripped:
+        threshold = BURST_MAX_REQUESTS
+        print(f"  All {BURST_MAX_REQUESTS} requests succeeded — threshold is higher than tested")
+
+    # Cooldown after burst
+    print(f"  Entering {PAUSE_DURATION}s cooldown after burst...")
+    await asyncio.sleep(PAUSE_DURATION)
+
+    summary = logger.phase_summary(phase)
+    print(f"\n  Phase 3 summary: {summary['total']} requests, {summary['success']} OK, {summary['rate_limited']} 429s")
+    if threshold:
+        print(f"  Burst threshold: {threshold} requests before 429")
+
+    checkpoint.complete_phase(phase)
+    return threshold
+
+
 async def run(args: argparse.Namespace) -> None:
     print(f"Output dir: {args.output_dir}")
     print("TODO: implement phases")
