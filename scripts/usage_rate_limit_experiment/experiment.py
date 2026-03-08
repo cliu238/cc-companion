@@ -21,6 +21,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--enable-burst", action="store_true", help="Enable burst phase (risky)")
     p.add_argument("--resume", action="store_true", help="Resume from checkpoint")
     p.add_argument("--output-dir", default="experiment_output", help="Output directory")
+    p.add_argument("--dry-run", action="store_true", help="Simulate requests without hitting API")
     return p.parse_args()
 
 
@@ -47,9 +48,16 @@ def read_token() -> str | None:
     return None
 
 
+DRY_RUN = False
+
+
 async def make_request(client: httpx.AsyncClient, token: str) -> dict:
     """Send one request to the usage API. Returns a result dict (never raises)."""
     ts = datetime.now(timezone.utc).isoformat()
+    if DRY_RUN:
+        import random
+        fake_status = random.choices([200, 429], weights=[0.8, 0.2])[0]
+        return {"timestamp": ts, "status": fake_status, "rate_limit_headers": {}, "body_preview": "(dry run)"}
     try:
         resp = await client.get(
             API_URL,
@@ -592,6 +600,11 @@ async def run(args: argparse.Namespace) -> None:
             logger.reload()
         else:
             print("No checkpoint found, starting fresh")
+
+    global DRY_RUN
+    DRY_RUN = args.dry_run
+    if DRY_RUN:
+        print("DRY RUN MODE — no real API requests")
 
     results: dict = {}
 
