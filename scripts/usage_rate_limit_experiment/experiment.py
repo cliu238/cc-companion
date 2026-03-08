@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -49,6 +48,11 @@ def read_token() -> str | None:
 
 
 DRY_RUN = False
+
+
+async def dry_sleep(seconds: float):
+    """Sleep, but only 0.01s in dry-run mode."""
+    await asyncio.sleep(0.01 if DRY_RUN else seconds)
 
 
 async def make_request(client: httpx.AsyncClient, token: str) -> dict:
@@ -308,7 +312,7 @@ async def phase_steady_state(
         for i in range(STEADY_STATE_REQUESTS_PER_INTERVAL):
             if i > 0:
                 print(f"  Waiting {interval}s...")
-                await asyncio.sleep(interval)
+                await dry_sleep(interval)
 
             result = await make_request(client, token)
             logger.log(phase, {**result, "interval": interval, "request_num": i + 1})
@@ -319,7 +323,7 @@ async def phase_steady_state(
                 break
             if action == "pause":
                 print(f"  2 consecutive 429s — pausing {PAUSE_DURATION}s")
-                await asyncio.sleep(PAUSE_DURATION)
+                await dry_sleep(PAUSE_DURATION)
                 all_ok = False
                 break
 
@@ -380,7 +384,7 @@ async def phase_endurance(
 
         if i > 0:
             print(f"  Waiting {interval}s... ({i}/{ENDURANCE_REQUESTS})")
-            await asyncio.sleep(interval)
+            await dry_sleep(interval)
 
         result = await make_request(client, token)
 
@@ -404,7 +408,7 @@ async def phase_endurance(
             break
         if action == "pause":
             print(f"  2 consecutive 429s — pausing {PAUSE_DURATION}s")
-            await asyncio.sleep(PAUSE_DURATION)
+            await dry_sleep(PAUSE_DURATION)
 
         if result.get("status") == 429 and first_429_at is None:
             first_429_at = i + 1
@@ -469,7 +473,7 @@ async def phase_recovery(
             print("  429 triggered successfully")
             break
 
-        await asyncio.sleep(1)
+        await dry_sleep(1)
 
     if not triggered:
         print("  Could not trigger 429 — API may not rate limit at this frequency")
@@ -491,7 +495,7 @@ async def phase_recovery(
             break
 
         print(f"  Waiting {wait_time}s before retry...")
-        await asyncio.sleep(wait_time)
+        await dry_sleep(wait_time)
 
         result = await make_request(client, token)
         logger.log(phase, {**result, "step": "recovery", "wait_time": wait_time})
@@ -502,7 +506,7 @@ async def phase_recovery(
             break
         if action == "pause":
             print(f"  Still rate limited after {wait_time}s — pausing {PAUSE_DURATION}s")
-            await asyncio.sleep(PAUSE_DURATION)
+            await dry_sleep(PAUSE_DURATION)
             continue
 
         if result.get("status") == 200:
@@ -548,7 +552,7 @@ async def phase_burst(
             break
 
         if i > 0:
-            await asyncio.sleep(BURST_INTERVAL)
+            await dry_sleep(BURST_INTERVAL)
 
         result = await make_request(client, token)
         logger.log(phase, {**result, "burst_num": i + 1})
@@ -569,7 +573,7 @@ async def phase_burst(
 
     # Cooldown after burst
     print(f"  Entering {PAUSE_DURATION}s cooldown after burst...")
-    await asyncio.sleep(PAUSE_DURATION)
+    await dry_sleep(PAUSE_DURATION)
 
     summary = logger.phase_summary(phase)
     print(f"\n  Phase 3 summary: {summary['total']} requests, {summary['success']} OK, {summary['rate_limited']} 429s")
