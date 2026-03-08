@@ -581,13 +581,21 @@ async def phase_burst(
 
 
 async def run(args: argparse.Namespace) -> None:
-    # Read token
-    token = read_token()
-    if not token:
-        print("ERROR: No OAuth token found.")
-        print("  Checked: macOS Keychain ('claude-ai-oauth') and ~/.claude/.credentials.json")
-        sys.exit(1)
-    print(f"Token: {token[:8]}...{token[-4:]}")
+    global DRY_RUN
+    DRY_RUN = args.dry_run
+    if DRY_RUN:
+        print("DRY RUN MODE — no real API requests")
+
+    # Read token (skip in dry-run mode)
+    if DRY_RUN:
+        token = "dry-run-placeholder"
+    else:
+        token = read_token()
+        if not token:
+            print("ERROR: No OAuth token found.")
+            print("  Checked: macOS Keychain ('claude-ai-oauth') and ~/.claude/.credentials.json")
+            sys.exit(1)
+        print(f"Token: {token[:8]}...{token[-4:]}")
 
     # Init components
     logger = Logger(args.output_dir)
@@ -600,11 +608,6 @@ async def run(args: argparse.Namespace) -> None:
             logger.reload()
         else:
             print("No checkpoint found, starting fresh")
-
-    global DRY_RUN
-    DRY_RUN = args.dry_run
-    if DRY_RUN:
-        print("DRY RUN MODE — no real API requests")
 
     results: dict = {}
 
