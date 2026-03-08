@@ -29,9 +29,23 @@ The biggest risk is not the experiment failing — it's **IP ban or account susp
 
 **Phase 1: Steady-state** (safest, run first)
 - Try intervals: 10min, 5min, 2min, 1min (in that order)
-- 3-5 requests per interval
+- 5 requests per interval
 - Goal: find the minimum interval that never triggers 429
 - If 10min triggers 429, something is very wrong → terminate
+
+**Phase 1b: Endurance** (validate Phase 1 result)
+- Use the minimum safe interval from Phase 1
+- Send 20 requests at that interval (e.g., 2min interval → ~40 minutes)
+- Goal: confirm the interval is truly stable, not just within a token bucket capacity
+- For each request, log rolling stats: requests in last 1min, 5min, 10min
+- If 429 appears, record which request number triggered it → infers bucket capacity
+- If all 20 succeed → the interval is genuinely safe
+
+**Rate limit model inference** (from endurance data):
+- 429 always at request N regardless of timing → **token bucket** (capacity = N)
+- 429 near fixed time boundaries (e.g., :00 of each minute) → **fixed window**
+- 429 correlates with "requests in last N minutes" → **sliding window**
+- Same parameters yield different results at different times → **adaptive** (needs separate runs to confirm)
 
 **Phase 2: Recovery** (moderate risk)
 - Using the minimum safe interval from Phase 1, intentionally trigger one 429 (by sending 2 rapid requests)
@@ -74,7 +88,14 @@ experiment_output/
   summary.txt       # generated after completion or interruption
 ```
 
-Summary includes: requests sent, successes, 429s, observed headers, recommended polling interval.
+Summary includes: requests sent, successes, 429s, observed headers, recommended polling interval, and inferred rate limit model.
+
+### Cross-Session Validation
+
+A single experiment run cannot detect time-of-day adaptive behavior. To validate:
+- Summary records experiment start/end timestamps
+- Users should run at different times (e.g., daytime vs. late night) and compare results
+- If results differ significantly → adaptive model, recommend using the most conservative result
 
 ### File Location
 

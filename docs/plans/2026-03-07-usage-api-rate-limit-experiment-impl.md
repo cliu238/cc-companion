@@ -238,11 +238,60 @@ class Logger:
             ],
         }
 
+    def rolling_stats(self, window_seconds: float) -> dict:
+        """Count requests in the last `window_seconds` based on logged timestamps."""
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        count = 0
+        for e in reversed(self.entries):
+            ts = datetime.fromisoformat(e["timestamp"])
+            if (now - ts).total_seconds() <= window_seconds:
+                count += 1
+            else:
+                break
+        return {"window_s": window_seconds, "count": count}
+
+    def infer_model(self) -> str:
+        """Analyze endurance data to infer the rate limit model."""
+        endurance = [e for e in self.entries if e.get("phase") == "endurance"]
+        if not endurance:
+            return "unknown (no endurance data)"
+
+        # Check if 429 always hits at same request number
+        four29s = [e for e in endurance if e.get("status") == 429]
+        if not four29s:
+            return "no 429 observed in endurance — interval is safe"
+
+        # Check if 429s correlate with request_num
+        nums = [e.get("request_num") for e in four29s if e.get("request_num")]
+        if nums and len(set(nums)) == 1:
+            return f"token_bucket (capacity ~{nums[0] - 1}, 429 always at request #{nums[0]})"
+
+        # Check if 429s correlate with clock boundaries
+        from datetime import datetime
+        times = []
+        for e in four29s:
+            ts = datetime.fromisoformat(e["timestamp"])
+            times.append(ts.second)
+        if times and max(times) - min(times) <= 5:
+            return f"fixed_window (429s cluster near second {int(sum(times)/len(times))})"
+
+        # Check correlation with rolling request count
+        rolling_counts = [e.get("rolling_1min", 0) for e in four29s]
+        if rolling_counts and len(set(rolling_counts)) == 1:
+            return f"sliding_window (429 when requests_in_1min >= {rolling_counts[0]})"
+
+        return "inconclusive (429 pattern doesn't match known models)"
+
     def write_summary(self):
         """Write final summary to summary.txt."""
+        from datetime import datetime, timezone
         summary_path = self.dir / "summary.txt"
         phases = sorted(set(e.get("phase", "") for e in self.entries))
         lines = ["=== Usage API Rate Limit Experiment Summary ===\n"]
+        if self.entries:
+            lines.append(f"Experiment start: {self.entries[0].get('timestamp', '?')}")
+            lines.append(f"Experiment end:   {self.entries[-1].get('timestamp', '?')}")
         for phase in phases:
             s = self.phase_summary(phase)
             lines.append(f"\n--- {phase} ---")
@@ -252,6 +301,10 @@ class Logger:
             lines.append(f"  Errors:   {s['errors']}")
             if s["headers_seen"]:
                 lines.append(f"  Rate limit headers observed: {s['headers_seen']}")
+        model = self.infer_model()
+        lines.append(f"\n--- Rate Limit Model Inference ---")
+        lines.append(f"  {model}")
+        lines.append(f"\nNote: Run at different times of day to check for adaptive behavior.")
         summary_path.write_text("\n".join(lines) + "\n")
         print(f"\nSummary written to {summary_path}")
 ```
@@ -362,7 +415,7 @@ git commit -m "feat: add Checkpoint for experiment resume (#2)"
 
 ```python
 STEADY_STATE_INTERVALS = [600, 300, 120, 60]  # seconds: 10min, 5min, 2min, 1min
-STEADY_STATE_REQUESTS_PER_INTERVAL = 3
+STEADY_STATE_REQUESTS_PER_INTERVAL = 5
 STEADY_STATE_MAX_DURATION = 4 * 3600  # 4 hours hard cap
 PAUSE_DURATION = 600  # 10 minutes
 
@@ -442,6 +495,111 @@ async def phase_steady_state(
 ```bash
 git add scripts/usage_rate_limit_experiment/experiment.py
 git commit -m "feat: implement steady-state phase (#2)"
+```
+
+---
+
+### Task 5b: Phase 1b — Endurance (validate non-linear rate limits)
+
+**Files:**
+- Modify: `scripts/usage_rate_limit_experiment/experiment.py`
+
+**Purpose:** Phase 1 only sends 5 requests per interval — not enough to detect token bucket or sliding window models. This phase stress-tests the candidate interval with 20 requests to confirm it's genuinely safe, and logs rolling stats to help infer the rate limit model.
+
+**Step 1: Implement endurance phase**
+
+```python
+ENDURANCE_REQUESTS = 20
+ENDURANCE_MAX_DURATION = 2 * 3600  # 2 hours hard cap
+
+
+async def phase_endurance(
+    client: httpx.AsyncClient,
+    token: str,
+    logger: Logger,
+    breaker: CircuitBreaker,
+    checkpoint: Checkpoint,
+    interval: int,
+) -> dict:
+    """Run endurance phase at the given interval. Returns analysis dict."""
+    phase = "endurance"
+    print(f"\n{'='*50}")
+    print(f"Phase 1b: Endurance")
+    print(f"Sending {ENDURANCE_REQUESTS} requests at {interval}s intervals")
+    print(f"Estimated duration: {ENDURANCE_REQUESTS * interval // 60} minutes")
+    print(f"{'='*50}")
+
+    start = asyncio.get_event_loop().time()
+    first_429_at = None
+
+    for i in range(ENDURANCE_REQUESTS):
+        if breaker.tripped:
+            break
+
+        elapsed = asyncio.get_event_loop().time() - start
+        if elapsed > ENDURANCE_MAX_DURATION:
+            print(f"  Phase time cap reached ({ENDURANCE_MAX_DURATION}s)")
+            break
+
+        if i > 0:
+            print(f"  Waiting {interval}s... ({i}/{ENDURANCE_REQUESTS})")
+            await asyncio.sleep(interval)
+
+        result = await make_request(client, token)
+
+        # Add rolling stats for model inference
+        rolling_1m = logger.rolling_stats(60)["count"]
+        rolling_5m = logger.rolling_stats(300)["count"]
+        rolling_10m = logger.rolling_stats(600)["count"]
+
+        logger.log(phase, {
+            **result,
+            "request_num": i + 1,
+            "interval": interval,
+            "rolling_1min": rolling_1m,
+            "rolling_5min": rolling_5m,
+            "rolling_10min": rolling_10m,
+        })
+
+        action = breaker.record(result.get("status", 0))
+        if action == "terminate":
+            print(f"  FUSE TRIPPED: {breaker.trip_reason}")
+            break
+        if action == "pause":
+            print(f"  2 consecutive 429s — pausing {PAUSE_DURATION}s")
+            await asyncio.sleep(PAUSE_DURATION)
+
+        if result.get("status") == 429 and first_429_at is None:
+            first_429_at = i + 1
+            print(f"  First 429 at request #{i + 1} — interval {interval}s is NOT fully safe")
+            # Don't break — keep going to collect more data points for model inference
+            # But increase interval to avoid burning through circuit breaker
+            interval = max(interval, 300)
+            print(f"  Backing off to {interval}s for remaining requests")
+
+    summary = logger.phase_summary(phase)
+    model = logger.infer_model()
+    print(f"\n  Phase 1b summary: {summary['total']} requests, {summary['success']} OK, {summary['rate_limited']} 429s")
+    print(f"  Inferred model: {model}")
+
+    if first_429_at:
+        print(f"  WARNING: 429 appeared at request #{first_429_at} — Phase 1 result was overfit")
+    else:
+        print(f"  All {summary['total']} requests succeeded — interval {interval}s is confirmed safe")
+
+    checkpoint.complete_phase(phase)
+    return {
+        "first_429_at": first_429_at,
+        "total_requests": summary["total"],
+        "model": model,
+    }
+```
+
+**Step 2: Commit**
+
+```bash
+git add scripts/usage_rate_limit_experiment/experiment.py
+git commit -m "feat: implement endurance phase for non-linear rate limit detection (#2)"
 ```
 
 ---
@@ -668,6 +826,18 @@ async def run(args: argparse.Namespace) -> None:
             results["min_safe_interval"] = min_interval
         else:
             print("Skipping steady_state (already completed)")
+            min_interval = checkpoint.state.get("min_safe_interval")
+
+        # Phase 1b: Endurance (validate the candidate interval)
+        if min_interval and not breaker.tripped and not checkpoint.is_completed("endurance"):
+            checkpoint.set_phase("endurance")
+            checkpoint.state["min_safe_interval"] = min_interval
+            checkpoint.save()
+            endurance_result = await phase_endurance(client, token, logger, breaker, checkpoint, min_interval)
+            results["endurance"] = endurance_result
+            results["inferred_model"] = endurance_result.get("model", "unknown")
+        elif not min_interval:
+            print("\nSkipping endurance: no safe interval found in Phase 1")
 
         # Phase 2: Recovery
         if not breaker.tripped and not checkpoint.is_completed("recovery"):
@@ -798,9 +968,9 @@ git commit -m "feat: add dry-run mode and README for experiment (#2)"
 
 ---
 
-### Total: 9 Tasks, ~25 Steps
+### Total: 10 Tasks, ~28 Steps
 
 Estimated file changes:
 - Create: `scripts/usage_rate_limit_experiment/pyproject.toml` (~10 lines)
-- Create: `scripts/usage_rate_limit_experiment/experiment.py` (~350 lines)
+- Create: `scripts/usage_rate_limit_experiment/experiment.py` (~450 lines)
 - Create: `scripts/usage_rate_limit_experiment/README.md` (~25 lines)
