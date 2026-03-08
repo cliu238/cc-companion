@@ -573,8 +573,77 @@ async def phase_burst(
 
 
 async def run(args: argparse.Namespace) -> None:
-    print(f"Output dir: {args.output_dir}")
-    print("TODO: implement phases")
+    # Read token
+    token = read_token()
+    if not token:
+        print("ERROR: No OAuth token found.")
+        print("  Checked: macOS Keychain ('claude-ai-oauth') and ~/.claude/.credentials.json")
+        sys.exit(1)
+    print(f"Token: {token[:8]}...{token[-4:]}")
+
+    # Init components
+    logger = Logger(args.output_dir)
+    breaker = CircuitBreaker()
+    checkpoint = Checkpoint(args.output_dir)
+
+    if args.resume:
+        if checkpoint.load():
+            print(f"Resuming from checkpoint: {checkpoint.state}")
+            logger.reload()
+        else:
+            print("No checkpoint found, starting fresh")
+
+    results: dict = {}
+
+    async with httpx.AsyncClient() as client:
+        # Phase 1: Steady-state
+        if not checkpoint.is_completed("steady_state"):
+            checkpoint.set_phase("steady_state")
+            min_interval = await phase_steady_state(client, token, logger, breaker, checkpoint)
+            results["min_safe_interval"] = min_interval
+        else:
+            print("Skipping steady_state (already completed)")
+            min_interval = checkpoint.state.get("min_safe_interval")
+
+        # Phase 1b: Endurance (validate the candidate interval)
+        if min_interval and not breaker.tripped and not checkpoint.is_completed("endurance"):
+            checkpoint.set_phase("endurance")
+            checkpoint.state["min_safe_interval"] = min_interval
+            checkpoint.save()
+            endurance_result = await phase_endurance(client, token, logger, breaker, checkpoint, min_interval)
+            results["endurance"] = endurance_result
+            results["inferred_model"] = endurance_result.get("model", "unknown")
+        elif not min_interval:
+            print("\nSkipping endurance: no safe interval found in Phase 1")
+
+        # Phase 2: Recovery
+        if not breaker.tripped and not checkpoint.is_completed("recovery"):
+            checkpoint.set_phase("recovery")
+            recovery_time = await phase_recovery(client, token, logger, breaker, checkpoint)
+            results["min_recovery_time"] = recovery_time
+        else:
+            if breaker.tripped:
+                print(f"\nSkipping recovery: {breaker.trip_reason}")
+
+        # Phase 3: Burst (opt-in)
+        if args.enable_burst and not breaker.tripped and not checkpoint.is_completed("burst"):
+            checkpoint.set_phase("burst")
+            threshold = await phase_burst(client, token, logger, breaker, checkpoint)
+            results["burst_threshold"] = threshold
+        elif args.enable_burst and breaker.tripped:
+            print(f"\nSkipping burst: {breaker.trip_reason}")
+        elif not args.enable_burst:
+            print("\nSkipping burst phase (use --enable-burst to include)")
+
+    # Final summary
+    logger.write_summary()
+    print(f"\n{'='*50}")
+    print("EXPERIMENT COMPLETE")
+    print(f"{'='*50}")
+    for k, v in results.items():
+        print(f"  {k}: {v}")
+    print(f"\nFull log: {logger.log_path}")
+    print(f"Summary:  {logger.dir / 'summary.txt'}")
 
 
 def main():
