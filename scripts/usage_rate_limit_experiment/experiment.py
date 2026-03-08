@@ -261,6 +261,83 @@ class Checkpoint:
         return phase in self.state["completed_phases"]
 
 
+# Phase constants
+STEADY_STATE_INTERVALS = [600, 300, 120, 60]  # seconds: 10min, 5min, 2min, 1min
+STEADY_STATE_REQUESTS_PER_INTERVAL = 5
+STEADY_STATE_MAX_DURATION = 4 * 3600  # 4 hours hard cap
+PAUSE_DURATION = 600  # 10 minutes
+
+
+async def phase_steady_state(
+    client: httpx.AsyncClient,
+    token: str,
+    logger: Logger,
+    breaker: CircuitBreaker,
+    checkpoint: Checkpoint,
+) -> int | None:
+    """Run steady-state phase. Returns minimum safe interval in seconds, or None."""
+    phase = "steady_state"
+    print(f"\n{'='*50}")
+    print(f"Phase 1: Steady-State")
+    print(f"Testing intervals: {[f'{s}s' for s in STEADY_STATE_INTERVALS]}")
+    print(f"{'='*50}")
+
+    start = asyncio.get_event_loop().time()
+    min_safe_interval = None
+
+    for interval in STEADY_STATE_INTERVALS:
+        if breaker.tripped:
+            break
+
+        elapsed = asyncio.get_event_loop().time() - start
+        if elapsed > STEADY_STATE_MAX_DURATION:
+            print(f"  Phase time cap reached ({STEADY_STATE_MAX_DURATION}s)")
+            break
+
+        print(f"\n  Testing interval: {interval}s ({interval // 60}min)")
+        all_ok = True
+
+        for i in range(STEADY_STATE_REQUESTS_PER_INTERVAL):
+            if i > 0:
+                print(f"  Waiting {interval}s...")
+                await asyncio.sleep(interval)
+
+            result = await make_request(client, token)
+            logger.log(phase, {**result, "interval": interval, "request_num": i + 1})
+
+            action = breaker.record(result.get("status", 0))
+            if action == "terminate":
+                print(f"  FUSE TRIPPED: {breaker.trip_reason}")
+                break
+            if action == "pause":
+                print(f"  2 consecutive 429s — pausing {PAUSE_DURATION}s")
+                await asyncio.sleep(PAUSE_DURATION)
+                all_ok = False
+                break
+
+            if result.get("status") == 429:
+                all_ok = False
+                print(f"  429 at interval {interval}s — this interval is too aggressive")
+                break
+
+        if all_ok and not breaker.tripped:
+            min_safe_interval = interval
+            print(f"  ✓ Interval {interval}s is safe ({STEADY_STATE_REQUESTS_PER_INTERVAL}/{STEADY_STATE_REQUESTS_PER_INTERVAL} succeeded)")
+        elif not all_ok:
+            print(f"  ✗ Interval {interval}s triggered rate limit — stopping here")
+            break
+
+    summary = logger.phase_summary(phase)
+    print(f"\n  Phase 1 summary: {summary['total']} requests, {summary['success']} OK, {summary['rate_limited']} 429s")
+    if min_safe_interval:
+        print(f"  Minimum safe interval found: {min_safe_interval}s")
+    else:
+        print(f"  No safe interval found!")
+
+    checkpoint.complete_phase(phase)
+    return min_safe_interval
+
+
 async def run(args: argparse.Namespace) -> None:
     print(f"Output dir: {args.output_dir}")
     print("TODO: implement phases")
