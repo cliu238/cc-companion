@@ -424,6 +424,97 @@ async def phase_endurance(
     }
 
 
+RECOVERY_WAIT_TIMES = [30, 60, 120, 300]  # seconds to try after a 429
+RECOVERY_MAX_DURATION = 1800  # 30 minutes
+
+
+async def phase_recovery(
+    client: httpx.AsyncClient,
+    token: str,
+    logger: Logger,
+    breaker: CircuitBreaker,
+    checkpoint: Checkpoint,
+) -> int | None:
+    """Run recovery phase. Returns minimum recovery time in seconds, or None."""
+    phase = "recovery"
+    print(f"\n{'='*50}")
+    print(f"Phase 2: Recovery")
+    print(f"{'='*50}")
+
+    start = asyncio.get_event_loop().time()
+
+    # Step 1: Trigger a 429 by sending 2 rapid requests
+    print("  Triggering 429 with rapid requests...")
+    triggered = False
+    for i in range(3):
+        result = await make_request(client, token)
+        logger.log(phase, {**result, "step": "trigger", "attempt": i + 1})
+
+        action = breaker.record(result.get("status", 0))
+        if action == "terminate":
+            print(f"  FUSE TRIPPED: {breaker.trip_reason}")
+            checkpoint.complete_phase(phase)
+            return None
+
+        if result.get("status") == 429:
+            triggered = True
+            print("  429 triggered successfully")
+            break
+
+        await asyncio.sleep(1)
+
+    if not triggered:
+        print("  Could not trigger 429 — API may not rate limit at this frequency")
+        print("  Skipping recovery phase (inconclusive)")
+        checkpoint.complete_phase(phase)
+        return None
+
+    # Step 2: Probe recovery times
+    print("  Probing recovery times...")
+    min_recovery = None
+
+    for wait_time in RECOVERY_WAIT_TIMES:
+        if breaker.tripped:
+            break
+
+        elapsed = asyncio.get_event_loop().time() - start
+        if elapsed > RECOVERY_MAX_DURATION:
+            print(f"  Phase time cap reached ({RECOVERY_MAX_DURATION}s)")
+            break
+
+        print(f"  Waiting {wait_time}s before retry...")
+        await asyncio.sleep(wait_time)
+
+        result = await make_request(client, token)
+        logger.log(phase, {**result, "step": "recovery", "wait_time": wait_time})
+
+        action = breaker.record(result.get("status", 0))
+        if action == "terminate":
+            print(f"  FUSE TRIPPED: {breaker.trip_reason}")
+            break
+        if action == "pause":
+            print(f"  Still rate limited after {wait_time}s — pausing {PAUSE_DURATION}s")
+            await asyncio.sleep(PAUSE_DURATION)
+            continue
+
+        if result.get("status") == 200:
+            min_recovery = wait_time
+            print(f"  ✓ Recovered after {wait_time}s")
+            break
+        else:
+            print(f"  ✗ Still rate limited after {wait_time}s")
+
+    summary = logger.phase_summary(phase)
+    print(f"\n  Phase 2 summary: {summary['total']} requests, {summary['success']} OK, {summary['rate_limited']} 429s")
+    if min_recovery:
+        print(f"  Minimum recovery time: {min_recovery}s")
+    else:
+        print(f"  Recovery time: inconclusive")
+
+    checkpoint.complete_phase(phase)
+    return min_recovery
+
+
 async def run(args: argparse.Namespace) -> None:
     print(f"Output dir: {args.output_dir}")
     print("TODO: implement phases")
