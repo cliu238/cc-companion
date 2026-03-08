@@ -338,6 +338,92 @@ async def phase_steady_state(
     return min_safe_interval
 
 
+ENDURANCE_REQUESTS = 20
+ENDURANCE_MAX_DURATION = 2 * 3600  # 2 hours hard cap
+
+
+async def phase_endurance(
+    client: httpx.AsyncClient,
+    token: str,
+    logger: Logger,
+    breaker: CircuitBreaker,
+    checkpoint: Checkpoint,
+    interval: int,
+) -> dict:
+    """Run endurance phase at the given interval. Returns analysis dict."""
+    phase = "endurance"
+    print(f"\n{'='*50}")
+    print(f"Phase 1b: Endurance")
+    print(f"Sending {ENDURANCE_REQUESTS} requests at {interval}s intervals")
+    print(f"Estimated duration: {ENDURANCE_REQUESTS * interval // 60} minutes")
+    print(f"{'='*50}")
+
+    start = asyncio.get_event_loop().time()
+    first_429_at = None
+
+    for i in range(ENDURANCE_REQUESTS):
+        if breaker.tripped:
+            break
+
+        elapsed = asyncio.get_event_loop().time() - start
+        if elapsed > ENDURANCE_MAX_DURATION:
+            print(f"  Phase time cap reached ({ENDURANCE_MAX_DURATION}s)")
+            break
+
+        if i > 0:
+            print(f"  Waiting {interval}s... ({i}/{ENDURANCE_REQUESTS})")
+            await asyncio.sleep(interval)
+
+        result = await make_request(client, token)
+
+        # Add rolling stats for model inference
+        rolling_1m = logger.rolling_stats(60)["count"]
+        rolling_5m = logger.rolling_stats(300)["count"]
+        rolling_10m = logger.rolling_stats(600)["count"]
+
+        logger.log(phase, {
+            **result,
+            "request_num": i + 1,
+            "interval": interval,
+            "rolling_1min": rolling_1m,
+            "rolling_5min": rolling_5m,
+            "rolling_10min": rolling_10m,
+        })
+
+        action = breaker.record(result.get("status", 0))
+        if action == "terminate":
+            print(f"  FUSE TRIPPED: {breaker.trip_reason}")
+            break
+        if action == "pause":
+            print(f"  2 consecutive 429s — pausing {PAUSE_DURATION}s")
+            await asyncio.sleep(PAUSE_DURATION)
+
+        if result.get("status") == 429 and first_429_at is None:
+            first_429_at = i + 1
+            print(f"  First 429 at request #{i + 1} — interval {interval}s is NOT fully safe")
+            # Don't break — keep going to collect more data points for model inference
+            # But increase interval to avoid burning through circuit breaker
+            interval = max(interval, 300)
+            print(f"  Backing off to {interval}s for remaining requests")
+
+    summary = logger.phase_summary(phase)
+    model = logger.infer_model()
+    print(f"\n  Phase 1b summary: {summary['total']} requests, {summary['success']} OK, {summary['rate_limited']} 429s")
+    print(f"  Inferred model: {model}")
+
+    if first_429_at:
+        print(f"  WARNING: 429 appeared at request #{first_429_at} — Phase 1 result was overfit")
+    else:
+        print(f"  All {summary['total']} requests succeeded — interval {interval}s is confirmed safe")
+
+    checkpoint.complete_phase(phase)
+    return {
+        "first_429_at": first_429_at,
+        "total_requests": summary["total"],
+        "model": model,
+    }
+
+
 async def run(args: argparse.Namespace) -> None:
     print(f"Output dir: {args.output_dir}")
     print("TODO: implement phases")
