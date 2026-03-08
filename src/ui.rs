@@ -892,7 +892,7 @@ mod tests {
             seven_day_pct: 40.0,
             seven_day_resets_at: Some(chrono::Utc::now() + chrono::Duration::days(3)),
             seven_day_sonnet_pct: None,
-            last_fetched: Instant::now(),
+            last_fetched: chrono::Utc::now(),
         });
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();

@@ -74,7 +74,7 @@ pub struct UsageStatus {
     pub seven_day_pct: f64,
     pub seven_day_resets_at: Option<DateTime<Utc>>,
     pub seven_day_sonnet_pct: Option<f64>,
-    pub last_fetched: Instant,
+    pub last_fetched: DateTime<Utc>,
 }
 
 #[derive(PartialEq)]
@@ -260,7 +260,11 @@ impl App {
                 rg_rx: None,
             },
         };
-        app.fetch_usage();
+        if let Some(cached) = load_usage_cache() {
+            app.usage_status = Some(cached);
+        } else {
+            app.fetch_usage();
+        }
         app
     }
 
@@ -298,6 +302,7 @@ impl App {
             if let Ok(result) = rx.try_recv() {
                 match result {
                     Ok(status) => {
+                        save_usage_cache(&status);
                         self.usage_status = Some(status);
                         self.usage_error = None;
                     }
@@ -348,12 +353,19 @@ impl App {
             }
         }
 
-        // Periodic usage refetch (every 5 min)
+        // Periodic usage refetch
+        // Rate limit: ~12 req/60min sliding window, ~40min recovery after 429
+        // Normal interval: 600s (10min) — safe margin within the window
+        // After 429: 2400s (40min) — wait for sliding window to clear
         if !self.usage_fetching {
+            let interval = match &self.usage_error {
+                Some(UsageError::RateLimited) => 2400,
+                _ => 600,
+            };
             let should_fetch = match &self.usage_status {
-                Some(s) => s.last_fetched.elapsed().as_secs() >= 300,
+                Some(s) => Utc::now().signed_duration_since(s.last_fetched).num_seconds() >= interval as i64,
                 None => match &self.usage_last_attempt {
-                    Some(t) => t.elapsed().as_secs() >= 300,
+                    Some(t) => t.elapsed().as_secs() >= interval,
                     None => true, // First fetch
                 },
             };
@@ -435,6 +447,45 @@ impl App {
     }
 }
 
+fn usage_cache_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".claude").join("cc-companion-usage-cache.json"))
+}
+
+fn load_usage_cache() -> Option<UsageStatus> {
+    let path = usage_cache_path()?;
+    let data = std::fs::read_to_string(path).ok()?;
+    let val: serde_json::Value = serde_json::from_str(&data).ok()?;
+
+    let last_fetched: DateTime<Utc> = val.get("last_fetched")?.as_str()?.parse().ok()?;
+    let age = Utc::now().signed_duration_since(last_fetched).num_seconds();
+    if age >= 600 {
+        return None; // stale
+    }
+
+    Some(UsageStatus {
+        five_hour_pct: val.get("five_hour_pct")?.as_f64()?,
+        five_hour_resets_at: val.get("five_hour_resets_at").and_then(|v| v.as_str()?.parse().ok()),
+        seven_day_pct: val.get("seven_day_pct")?.as_f64()?,
+        seven_day_resets_at: val.get("seven_day_resets_at").and_then(|v| v.as_str()?.parse().ok()),
+        seven_day_sonnet_pct: val.get("seven_day_sonnet_pct").and_then(|v| v.as_f64()),
+        last_fetched,
+    })
+}
+
+fn save_usage_cache(status: &UsageStatus) {
+    let val = serde_json::json!({
+        "five_hour_pct": status.five_hour_pct,
+        "five_hour_resets_at": status.five_hour_resets_at.map(|dt| dt.to_rfc3339()),
+        "seven_day_pct": status.seven_day_pct,
+        "seven_day_resets_at": status.seven_day_resets_at.map(|dt| dt.to_rfc3339()),
+        "seven_day_sonnet_pct": status.seven_day_sonnet_pct,
+        "last_fetched": status.last_fetched.to_rfc3339(),
+    });
+    if let Some(path) = usage_cache_path() {
+        let _ = std::fs::write(path, val.to_string());
+    }
+}
+
 /// Fetch usage from the Anthropic OAuth API.
 fn fetch_oauth_usage() -> Result<UsageStatus, UsageError> {
     let token = crate::platform::get_oauth_token()
@@ -505,7 +556,7 @@ fn fetch_oauth_usage() -> Result<UsageStatus, UsageError> {
         seven_day_pct,
         seven_day_resets_at,
         seven_day_sonnet_pct,
-        last_fetched: Instant::now(),
+        last_fetched: Utc::now(),
     })
 }
 

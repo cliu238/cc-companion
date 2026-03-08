@@ -5,4 +5,4 @@ video/node_modules/
 .env
 .DS_Store
 .worktrees/
-scripts/usage_rate_limit_experiment/results_run1/
+scripts/usage_rate_limit_experiment/results_*/

@@ -63,7 +63,6 @@ impl Pipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Instant;
     use chrono::{Duration, Utc};
 
     fn make_usage(five_pct: f64, five_mins_left: i64, seven_pct: f64, seven_mins_left: i64) -> UsageStatus {
@@ -74,7 +73,7 @@ mod tests {
             seven_day_pct: seven_pct,
             seven_day_resets_at: Some(now + Duration::minutes(seven_mins_left)),
             seven_day_sonnet_pct: None,
-            last_fetched: Instant::now(),
+            last_fetched: Utc::now(),
         }
     }
 
