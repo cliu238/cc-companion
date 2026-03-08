@@ -1,0 +1,61 @@
+Token: sk-ant-o...CgAA
+Resuming from checkpoint: {'phase': 'endurance', 'step': 0, 'completed_phases': ['steady_state'], 'min_safe_interval': 300}
+  Reloaded 15 entries from results_run1/log.txt
+Skipping steady_state (already completed)
+
+==================================================
+Phase 1b: Endurance
+Sending 20 requests at 300s intervals
+Estimated duration: 100 minutes
+==================================================
+  [2026-03-08T05:04:58.298834+00:00] HTTP 429 headers={'retry-after': '0'}
+  First 429 at request #1 — interval 300s is NOT fully safe
+  Backing off to 600s for remaining requests
+  Waiting 1800s for rate limit window to slide...
+  Waiting 600s... (1/20)
+  [2026-03-08T05:44:58.567975+00:00] HTTP 200
+  Waiting 600s... (2/20)
+  [2026-03-08T05:54:59.358189+00:00] HTTP 200
+  Waiting 600s... (3/20)
+  [2026-03-08T06:04:59.926454+00:00] HTTP 200
+  Waiting 600s... (4/20)
+  [2026-03-08T06:15:00.318038+00:00] HTTP 200
+  Waiting 600s... (5/20)
+  [2026-03-08T06:25:00.885331+00:00] HTTP 200
+  Waiting 600s... (6/20)
+  [2026-03-08T06:35:01.496936+00:00] HTTP 200
+  Waiting 600s... (7/20)
+  [2026-03-08T06:45:02.069065+00:00] HTTP 200
+  Waiting 600s... (8/20)
+  [2026-03-08T06:55:02.908086+00:00] HTTP 200
+  Waiting 600s... (9/20)
+  [2026-03-08T07:05:03.591788+00:00] HTTP 200
+  Phase time cap reached (7200s)
+
+  Phase 1b summary: 12 requests, 9 OK, 3 429s
+  Inferred model: inconclusive (429 pattern doesn't match known models)
+  WARNING: 429 appeared at request #1 — Phase 1 result was overfit
+
+==================================================
+Phase 2: Recovery
+==================================================
+  Triggering 429 with rapid requests...
+  [2026-03-08T07:05:05.600824+00:00] HTTP 200
+  [2026-03-08T07:05:06.713024+00:00] HTTP 200
+  [2026-03-08T07:05:07.825578+00:00] HTTP 200
+  Could not trigger 429 — API may not rate limit at this frequency
+  Skipping recovery phase (inconclusive)
+
+Skipping burst phase (use --enable-burst to include)
+
+Summary written to results_run1/summary.txt
+
+==================================================
+EXPERIMENT COMPLETE
+==================================================
+  endurance: {'first_429_at': 1, 'total_requests': 12, 'model': "inconclusive (429 pattern doesn't match known models)"}
+  inferred_model: inconclusive (429 pattern doesn't match known models)
+  min_recovery_time: None
+
+Full log: results_run1/log.txt
+Summary:  results_run1/summary.txt
