@@ -30,12 +30,15 @@ def read_token() -> str | None:
     if sys.platform == "darwin":
         try:
             result = subprocess.run(
-                ["security", "find-generic-password", "-s", "claude-ai-oauth", "-w"],
+                ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
                 capture_output=True, text=True, timeout=5,
             )
             if result.returncode == 0 and result.stdout.strip():
-                return result.stdout.strip()
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+                cred = json.loads(result.stdout.strip())
+                token = cred.get("claudeAiOauth", {}).get("accessToken")
+                if token:
+                    return token
+        except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError):
             pass
 
     # Fallback: ~/.claude/.credentials.json
