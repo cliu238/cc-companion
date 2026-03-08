@@ -1,0 +1,8 @@
+[project]
+name = "usage-rate-limit-experiment"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["httpx>=0.28"]
+
+[project.scripts]
+run-experiment = "experiment:main"
