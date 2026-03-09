@@ -9,6 +9,12 @@ const TRIGGER_MINUTES_7D: i64 = 24 * 60;
 const TRIGGER_MAX_5H_PCT: f64 = 90.0;
 const TRIGGER_MAX_7D_PCT: f64 = 95.0;
 
+const AUTONOMOUS_PREAMBLE: &str = "\
+You are running in an automated pipeline with no human operator.\n\
+Complete the task fully and autonomously. Do not ask questions or wait for confirmation.\n\
+Make decisions yourself. When done, output your final result and stop.\n\
+If you are blocked and cannot proceed, output FAILED=<reason> and stop.\n\n";
+
 #[derive(Clone)]
 pub struct AutoTask {
     pub name: String,
@@ -238,16 +244,18 @@ impl Scheduler {
     }
 
     pub fn next_task(&mut self) -> AutoTask {
-        let task = self.tasks.remove(0);
+        let mut task = self.tasks.remove(0);
         self.running = Some(task.name.clone());
         self.running_resume = task.resume;
+        task.prompt = format!("{}{}", AUTONOMOUS_PREAMBLE, task.prompt);
         task
     }
 
     pub fn run_task(&mut self, idx: usize) -> AutoTask {
-        let task = self.tasks.remove(idx);
+        let mut task = self.tasks.remove(idx);
         self.running = Some(task.name.clone());
         self.running_resume = task.resume;
+        task.prompt = format!("{}{}", AUTONOMOUS_PREAMBLE, task.prompt);
         task
     }
 
