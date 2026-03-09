@@ -579,7 +579,7 @@ fn draw_goal_input_popup(f: &mut Frame, app: &App, area: ratatui::layout::Rect) 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan))
-        .title(" Issue label filter (empty=all issues) ");
+        .title(" Filter: label name or #issue number (empty=all) ");
     let input = Paragraph::new(app.tasks.goal_text.as_str()).block(block);
     f.render_widget(ratatui::widgets::Clear, popup_area);
     f.render_widget(input, popup_area);

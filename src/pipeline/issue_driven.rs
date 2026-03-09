@@ -39,8 +39,11 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
         }],
 
         RUN_TESTS => {
-            let label_filter = if goal.is_empty() {
+            let issue_filter = if goal.is_empty() {
                 String::new()
+            } else if goal.trim_start_matches('#').parse::<u64>().is_ok() {
+                let num = goal.trim_start_matches('#');
+                format!(" Use `gh issue view {}` to fetch issue #{}.", num, num)
             } else {
                 format!(" Use `gh issue list --label {}` to filter.", goal)
             };
@@ -48,7 +51,7 @@ pub fn on_complete(task_name: &str, output: &str, project_cwd: &str, goal: &str)
                 name: IMPLEMENT.into(),
                 prompt: format!(
                     "/superpowers:verification-before-completion\n\n\
-                     - First, check for the next open GitHub issue (gh cli).{label_filter} \
+                     - First, check for the next open GitHub issue (gh cli).{issue_filter} \
                      If there are no open issues, output ISSUES_EMPTY and stop.\n\n\
                      - Create a worktree for this issue: \
                      `git worktree add .worktrees/issue-<NUMBER> -b issue-driven-<NUMBER>` \
@@ -206,5 +209,23 @@ mod tests {
         assert_eq!(tasks.len(), 1);
         assert!(tasks[0].prompt.contains("--label"));
         assert!(tasks[0].prompt.contains("enhancement"));
+    }
+
+    #[test]
+    fn test_goal_as_issue_number() {
+        let tasks = on_complete(RUN_TESTS, "ok", "/tmp/proj", "29");
+        assert_eq!(tasks.len(), 1);
+        assert!(tasks[0].prompt.contains("gh issue view 29"),
+            "numeric goal should use `gh issue view` not `--label`");
+        assert!(!tasks[0].prompt.contains("--label"));
+    }
+
+    #[test]
+    fn test_goal_as_issue_number_with_hash() {
+        let tasks = on_complete(RUN_TESTS, "ok", "/tmp/proj", "#29");
+        assert_eq!(tasks.len(), 1);
+        assert!(tasks[0].prompt.contains("gh issue view 29"),
+            "goal with # prefix should use `gh issue view`");
+        assert!(!tasks[0].prompt.contains("--label"));
     }
 }
