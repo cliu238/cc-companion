@@ -244,14 +244,14 @@ impl Scheduler {
     }
 
     pub fn next_task(&mut self) -> AutoTask {
-        let mut task = self.tasks.remove(0);
-        self.running = Some(task.name.clone());
-        self.running_resume = task.resume;
-        task.prompt = format!("{}{}", AUTONOMOUS_PREAMBLE, task.prompt);
-        task
+        self.prepare_task(0)
     }
 
     pub fn run_task(&mut self, idx: usize) -> AutoTask {
+        self.prepare_task(idx)
+    }
+
+    fn prepare_task(&mut self, idx: usize) -> AutoTask {
         let mut task = self.tasks.remove(idx);
         self.running = Some(task.name.clone());
         self.running_resume = task.resume;
