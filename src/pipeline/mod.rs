@@ -166,6 +166,26 @@ mod tests {
         let usage = make_usage(50.0, 200, 50.0, 2000);
         assert!(!sched.should_launch(&usage, false));
     }
+
+    #[test]
+    fn test_next_task_prepends_preamble() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        assert!(!sched.tasks.is_empty());
+        let task = sched.next_task();
+        assert!(task.prompt.starts_with("You are running in an automated pipeline"),
+            "next_task() should prepend autonomous preamble to prompt");
+    }
+
+    #[test]
+    fn test_run_task_prepends_preamble() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        assert!(!sched.tasks.is_empty());
+        let task = sched.run_task(0);
+        assert!(task.prompt.starts_with("You are running in an automated pipeline"),
+            "run_task() should prepend autonomous preamble to prompt");
+    }
 }
 
 pub struct Scheduler {
