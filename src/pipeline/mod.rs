@@ -8,6 +8,8 @@ const TRIGGER_MINUTES_5H: i64 = 30;
 const TRIGGER_MINUTES_7D: i64 = 24 * 60;
 const TRIGGER_MAX_5H_PCT: f64 = 90.0;
 const TRIGGER_MAX_7D_PCT: f64 = 95.0;
+const FALLBACK_MAX_5H_PCT: f64 = 80.0;
+const FALLBACK_MAX_7D_PCT: f64 = 90.0;
 
 const AUTONOMOUS_PREAMBLE: &str = "\
 You are running in an automated pipeline with no human operator.\n\
@@ -168,8 +170,8 @@ mod tests {
     fn test_should_launch_too_far() {
         let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
         sched.enabled = true;
-        // Low usage but far from reset
-        let usage = make_usage(50.0, 200, 50.0, 2000);
+        // Usage above fallback caps and far from reset
+        let usage = make_usage(85.0, 200, 92.0, 2000);
         assert!(!sched.should_launch(&usage, false));
     }
 
@@ -284,7 +286,13 @@ impl Scheduler {
             })
             .unwrap_or(false);
 
-        five_hour_trigger || seven_day_trigger
+        // Fallback: run when usage is comfortably below caps,
+        // even if reset windows are far away.
+        let fallback_trigger =
+            usage.five_hour_pct < FALLBACK_MAX_5H_PCT
+            && usage.seven_day_pct < FALLBACK_MAX_7D_PCT;
+
+        five_hour_trigger || seven_day_trigger || fallback_trigger
     }
 
     pub fn next_task(&mut self) -> AutoTask {
