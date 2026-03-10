@@ -290,6 +290,10 @@ impl App {
                     let cwd = self.cwd.display().to_string();
                     let keep_session = self.tasks.scheduler.running_resume;
                     self.tasks.scheduler.complete_running(output, &cwd);
+                    // Force usage refresh after task completion — cached data is stale
+                    if !self.usage_fetching {
+                        self.fetch_usage();
+                    }
                     if !keep_session {
                         // Non-resuming tasks are independent; keep existing session_id
                     }
