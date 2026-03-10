@@ -503,7 +503,7 @@ fn build_status_line(app: &App, width: u16) -> Paragraph<'static> {
                 format!("{}h{:02}m left", h, m)
             }
         }
-        None => "??".to_string(),
+        None => "idle".to_string(),
     };
 
     let seven_day_countdown = match usage.seven_day_resets_at {
