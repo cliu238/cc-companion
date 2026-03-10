@@ -192,6 +192,50 @@ mod tests {
         assert!(task.prompt.starts_with("You are running in an automated pipeline"),
             "run_task() should prepend autonomous preamble to prompt");
     }
+
+    #[test]
+    fn test_should_launch_fallback_low_usage() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        // Low usage, but reset is far away (2 hours for 5h, 2 days for 7d)
+        // Neither near-reset trigger fires, but fallback should
+        let usage = make_usage(20.0, 120, 30.0, 2 * 24 * 60);
+        assert!(sched.should_launch(&usage, false), "fallback should fire when usage is low");
+    }
+
+    #[test]
+    fn test_should_launch_fallback_blocked_by_high_5h() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        // 5h usage above fallback cap, 7d low, reset far away
+        let usage = make_usage(85.0, 120, 30.0, 2 * 24 * 60);
+        assert!(!sched.should_launch(&usage, false), "fallback must not fire when 5h usage high");
+    }
+
+    #[test]
+    fn test_should_launch_fallback_blocked_by_high_7d() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        // 5h low, 7d usage above fallback cap, reset far away
+        let usage = make_usage(20.0, 120, 92.0, 2 * 24 * 60);
+        assert!(!sched.should_launch(&usage, false), "fallback must not fire when 7d usage high");
+    }
+
+    #[test]
+    fn test_should_launch_fallback_none_resets_at() {
+        let mut sched = Scheduler::new(Pipeline::Example, "/tmp", "");
+        sched.enabled = true;
+        // resets_at is None (0% usage, API returns null) — fallback should still fire
+        let usage = UsageStatus {
+            five_hour_pct: 0.0,
+            five_hour_resets_at: None,
+            seven_day_pct: 22.0,
+            seven_day_resets_at: Some(Utc::now() + Duration::minutes(2 * 24 * 60)),
+            seven_day_sonnet_pct: Some(4.0),
+            last_fetched: Utc::now(),
+        };
+        assert!(sched.should_launch(&usage, false), "fallback should fire even when resets_at is None");
+    }
 }
 
 pub struct Scheduler {
