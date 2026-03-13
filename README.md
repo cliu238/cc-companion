@@ -57,6 +57,8 @@ An end-to-end scientific research pipeline is being built as the first use case:
 ### Proactive Heuristic Guidance
 The companion will move beyond answering questions to **actively initiating conversations** — offering suggestions on Claude Code usage patterns, surfacing relevant past sessions, and providing teaching-style guidance. This enables research into human-AI pedagogical interaction: how an AI can effectively coach a developer rather than simply serve them.
 
+One promising direction is **Graph-RAG** (Graph-based Retrieval-Augmented Generation): by constructing a knowledge graph from session logs, project structures, and code relationships, the companion can traverse semantic connections to surface contextually relevant suggestions — such as recommending related past solutions when a similar problem is detected, or identifying architectural patterns the developer hasn't yet explored. Graph-RAG enables richer, more associative retrieval than flat vector search, making proactive guidance more precise and serendipitous.
+
 ### Cross-User Knowledge Sharing
 By analyzing session logs across team members working on related projects, the companion can identify **domain knowledge gaps and overlaps** — enabling cross-pollination of insights, shared best practices, and collaborative learning without requiring direct communication between users.
 
